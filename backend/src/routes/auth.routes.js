@@ -1,0 +1,30 @@
+const express = require('express');
+const router = express.Router();
+const authController = require('../controllers/auth.controller');
+const { protect } = require('../middleware/auth.middleware');
+const { authLimiter } = require('../middleware/auth.middleware');
+const validate = require('../middleware/validate.middleware');
+const { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, changePasswordSchema } = require('../validators/auth.validator');
+
+/**
+ * @swagger
+ * tags:
+ *   name: Auth
+ *   description: Authentication & Authorization
+ */
+
+router.post('/register',          authLimiter, validate(registerSchema),       authController.register);
+router.post('/login',             authLimiter, validate(loginSchema),           authController.login);
+router.post('/refresh-token',                                                    authController.refreshToken);
+router.post('/logout',            protect,                                       authController.logout);
+router.post('/logout-all',        protect,                                       authController.logoutAll);
+router.post('/forgot-password',   authLimiter, validate(forgotPasswordSchema),  authController.forgotPassword);
+router.patch('/reset-password/:token',   validate(resetPasswordSchema),         authController.resetPassword);
+router.get('/verify-email/:token',                                              authController.verifyEmail);
+router.post('/resend-verification',      authLimiter,                           authController.resendVerification);
+router.patch('/change-password',  protect, validate(changePasswordSchema),      authController.changePassword);
+router.get('/me',                 protect,                                       authController.getMe);
+router.get('/sessions',           protect,                                       authController.getActiveSessions);
+router.delete('/sessions/:sessionId', protect,                                  authController.revokeSession);
+
+module.exports = router;
