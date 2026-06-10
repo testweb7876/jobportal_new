@@ -22,6 +22,8 @@ const JobDetailPage    = lazy(() => import('@/pages/public/JobDetailPage'))
 const CompaniesPage    = lazy(() => import('@/pages/public/CompaniesPage'))
 const CompanyDetailPage = lazy(() => import('@/pages/public/CompanyDetailPage'))
 const AboutPage        = lazy(() => import('@/pages/public/AboutPage'))
+const PaymentSuccess = lazy(() => import('@/pages/payment/PaymentSuccess'))
+const PaymentCancel = lazy(() => import('@/pages/payment/PaymentCancel'))
 
 // ── Auth Pages ───────────────────────────────────────────────────────────────
 const LoginPage        = lazy(() => import('@/pages/auth/LoginPage'))
@@ -72,6 +74,9 @@ function App() {
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
+
+        <Route path="/payment/success" element={<PaymentSuccess />} />
+          <Route path="/payment/cancel" element={<PaymentCancel />} />
         {/* ── Public Routes ───────────────────────────────────────────── */}
         <Route element={<PublicLayout />}>
           <Route path="/"         element={<HomePage />} />

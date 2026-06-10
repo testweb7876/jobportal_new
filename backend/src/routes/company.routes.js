@@ -15,5 +15,6 @@ router.delete('/gallery',          protect, employerOnly, companyController.dele
 router.post('/verify/submit',      protect, employerOnly, uploadFile.array('documents', 5), companyController.submitVerification);
 router.post('/:id/follow',         protect,               companyController.toggleFollow);
 router.patch('/:id/verify',        protect, adminOnly,    companyController.verifyCompany);
+router.get( '/admin/all', protect, adminOnly, companyController.getAllCompaniesAdmin);
 
 module.exports = router;

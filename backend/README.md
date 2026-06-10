@@ -75,7 +75,8 @@ npm run dev
 ```bash
 docker-compose up -d
 ```
-
+stripe login
+stripe listen --forward-to localhost:5000/api/v1/payments/stripe/webhook
 ---
 
 ## 🔑 API Endpoints

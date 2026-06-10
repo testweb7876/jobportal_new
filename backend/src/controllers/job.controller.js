@@ -18,7 +18,15 @@ const buildJobQuery = (query) => {
   if (query.workplaceType) filter.workplaceType = query.workplaceType;
   if (query.isUrgent) filter.isUrgent = true;
   if (query.company) filter.companyId = query.company;
-  if (query.experience !== undefined) filter.experience = { $lte: parseInt(query.experience) };
+    if (
+    query.experience !== undefined &&
+    query.experience !== '' &&
+    !isNaN(query.experience)
+  ) {
+    filter.experience = {
+      $lte: Number(query.experience)
+    };
+  }
   if (query.tags) filter.tags = { $in: Array.isArray(query.tags) ? query.tags : [query.tags] };
 
   if (query.salaryMin || query.salaryMax) {
@@ -120,8 +128,16 @@ exports.createJob = asyncHandler(async (req, res, next) => {
   // Check package usage
   const pkg = await UserPackage.findOne({ uid: req.user._id, status: true, isActive: true, endDate: { $gt: new Date() } });
 
-  if (!pkg || pkg.remainingJobs <= 0) {
-    return next(new AppError('You have reached your job posting limit. Please upgrade your package.', 403));
+  if (
+    !pkg ||
+    (pkg.remainingJobs !== -1 && pkg.remainingJobs <= 0)
+  ) {
+    return next(
+      new AppError(
+        'You have reached your job posting limit. Please upgrade your package.',
+        403
+      )
+    );
   }
 
   const jobData = {
@@ -137,7 +153,11 @@ exports.createJob = asyncHandler(async (req, res, next) => {
   const job = await Job.create(jobData);
 
   // Deduct usage
-  await UserPackage.findByIdAndUpdate(pkg._id, { $inc: { remainingJobs: -1 } });
+  if (pkg.remainingJobs !== -1) {
+    await UserPackage.findByIdAndUpdate(pkg._id, {
+      $inc: { remainingJobs: -1 }
+    });
+  }
 
   // Log activity
   await ActivityLog.create({

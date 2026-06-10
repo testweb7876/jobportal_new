@@ -41,7 +41,7 @@ export default function LoginPage() {
         <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }}
           className="relative z-10 text-white max-w-md">
           <div className="flex items-center gap-3 mb-12">
-            <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center">
+            <div className="w-10 h-12 bg-primary-600 rounded-xl flex items-center justify-center">
               <Briefcase size={20} className="text-white" />
             </div>
             <span className="font-display text-2xl font-bold">Job<span className="text-primary-400">Portal</span></span>

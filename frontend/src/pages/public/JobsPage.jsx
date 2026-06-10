@@ -130,31 +130,31 @@ export default function JobsPage() {
               className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 mt-3 pt-3 border-t border-gray-100 dark:border-dark-700">
               {/* Category */}
               <select value={filters.category} onChange={e => setFilter('category', e.target.value)}
-                className="input h-10 text-sm">
+                className="input h-12 text-sm">
                 <option value="">All Categories</option>
                 {categories?.map(c => <option key={c._id} value={c._id}>{c.catTitle}</option>)}
               </select>
               {/* Job Type */}
               <select value={filters.jobType} onChange={e => setFilter('jobType', e.target.value)}
-                className="input h-10 text-sm">
+                className="input h-12 text-sm">
                 <option value="">All Job Types</option>
                 {jobTypes?.map(t => <option key={t._id} value={t._id}>{t.title}</option>)}
               </select>
               {/* Workplace */}
               <select value={filters.workplaceType} onChange={e => setFilter('workplaceType', e.target.value)}
-                className="input h-10 text-sm">
+                className="input h-12 text-sm">
                 <option value="">Workplace Type</option>
                 {WORKPLACE_TYPES.map(t => <option key={t} value={t} className="capitalize">{t}</option>)}
               </select>
               {/* Experience */}
               <select value={filters.experience} onChange={e => setFilter('experience', e.target.value)}
-                className="input h-10 text-sm">
+                className="input h-12 text-sm">
                 <option value="">Experience</option>
                 {[1, 2, 3, 5, 7, 10].map(y => <option key={y} value={y}>{y}+ years</option>)}
               </select>
               {/* Sort */}
               <select value={filters.sort} onChange={e => setFilter('sort', e.target.value)}
-                className="input h-10 text-sm">
+                className="input h-12 text-sm">
                 <option value="newest">Newest First</option>
                 <option value="oldest">Oldest First</option>
                 <option value="salary_high">Highest Salary</option>

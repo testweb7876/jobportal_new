@@ -100,8 +100,8 @@ function MessageInput({ conversationId }) {
   return (
     <div className="p-4 border-t border-gray-100 dark:border-dark-700 flex gap-3">
       <input value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === 'Enter' && send()}
-        placeholder="Type a message..." className="input flex-1 h-10 text-sm" />
-      <button onClick={send} className="btn-primary px-4 h-10"><Send size={15} /></button>
+        placeholder="Type a message..." className="input flex-1 h-12 text-sm" />
+      <button onClick={send} className="btn-primary px-4 h-12"><Send size={15} /></button>
     </div>
   )
 }

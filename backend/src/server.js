@@ -73,8 +73,19 @@ app.use('/api/', globalLimiter);
 app.use('/api/', speedLimiter);
 
 // ─── BODY PARSING ──────────────────────────────────────────────────────────
+// app.use(express.json({ limit: '10mb' }));
+// app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+app.use(
+  '/api/v1/payments/stripe/webhook',
+  express.raw({ type: 'application/json' })
+);
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+app.use('/api/v1/payments', require('./routes/payment.routes'));
+
 app.use(cookieParser(process.env.COOKIE_SECRET));
 app.use(compression());
 
@@ -117,7 +128,7 @@ app.use(`${apiPrefix}/companies`,     require('./routes/company.routes'));
 app.use(`${apiPrefix}/resumes`,       require('./routes/resume.routes'));
 app.use(`${apiPrefix}/applications`,  require('./routes/application.routes'));
 app.use(`${apiPrefix}/packages`,      require('./routes/package.routes'));
-app.use(`${apiPrefix}/payments`,      require('./routes/payment.routes'));
+// app.use(`${apiPrefix}/payments`,      require('./routes/payment.routes'));
 app.use(`${apiPrefix}/notifications`, require('./routes/notification.routes'));
 app.use(`${apiPrefix}/messages`,      require('./routes/message.routes'));
 app.use(`${apiPrefix}/uploads`,       require('./routes/upload.routes'));
