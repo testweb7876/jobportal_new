@@ -17,5 +17,6 @@ router.patch('/reports/:id',               adminController.resolveReport);
 router.get('/system-errors',               adminController.getSystemErrors);
 router.get('/activity-logs',               adminController.getActivityLogs);
 router.get('/bank-transfers',              adminController.getPendingBankTransfers);
+router.get('/invoices', protect, adminOnly, adminController.getInvoices);
 
 module.exports = router;

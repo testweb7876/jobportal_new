@@ -76,7 +76,7 @@ export default function JSDashboard() {
             <div className="space-y-3">
               {applications.map(app => (
                 <div key={app._id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-dark-700 transition-colors">
-                  <div className="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/20 flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-12 rounded-xl bg-primary-100 dark:bg-primary-900/20 flex items-center justify-center flex-shrink-0">
                     <Briefcase size={16} className="text-primary-600" />
                   </div>
                   <div className="flex-1 min-w-0">

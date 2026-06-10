@@ -57,7 +57,7 @@ api.interceptors.response.use(
         if (!refreshToken) throw new Error('No refresh token')
 
         const { data } = await axios.post(`${BASE_URL}/auth/refresh-token`, { refreshToken })
-        const newToken = data.accessToken
+        const newToken = data.data.accessToken
 
         // Update store
         const stored = JSON.parse(localStorage.getItem('jp-auth') || '{}')
@@ -194,6 +194,7 @@ export const adminAPI = {
   getBankTransfers: () => api.get('/admin/bank-transfers'),
   approveBankTransfer: (id) => api.patch(`/payments/bank/${id}/approve`),
   activityLogs: (params) => api.get('/admin/activity-logs', { params }),
+  getInvoices: (params) => api.get('/admin/invoices', { params }),
 }
 
 export const searchAPI = {

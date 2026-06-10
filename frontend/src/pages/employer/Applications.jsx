@@ -82,7 +82,7 @@ export default function EmpApplications() {
         <div className="flex-1">
           <label className="label text-xs">Select Job to View Applications</label>
           <select value={selectedJobId} onChange={e => { setSelectedJobId(e.target.value); setPage(1) }}
-            className="input h-10 text-sm">
+            className="input h-12 text-sm">
             <option value="">-- Select a Job --</option>
             {myJobs.map(job => (
               <option key={job._id} value={job._id}>
@@ -96,7 +96,7 @@ export default function EmpApplications() {
           <div>
             <label className="label text-xs">Filter by Status</label>
             <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }}
-              className="input h-10 text-sm w-44">
+              className="input h-12 text-sm w-44">
               <option value="all">All Status</option>
               {['applied', ...STATUS_OPTIONS].map(s => (
                 <option key={s} value={s} className="capitalize">{s.replace('_', ' ')}</option>
@@ -114,7 +114,7 @@ export default function EmpApplications() {
         <div className="space-y-3">
           {Array(5).fill(0).map((_, i) => (
             <div key={i} className="card p-4 flex gap-3 animate-pulse">
-              <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-dark-700" />
+              <div className="w-10 h-12 rounded-full bg-gray-200 dark:bg-dark-700" />
               <div className="flex-1 space-y-2">
                 <div className="h-4 bg-gray-200 dark:bg-dark-700 rounded w-1/3" />
                 <div className="h-3 bg-gray-200 dark:bg-dark-700 rounded w-1/2" />

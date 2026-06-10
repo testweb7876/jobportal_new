@@ -71,7 +71,7 @@ export default function AdminDashboard() {
           { label: 'Pending Reports', value: d.pendingReports || 0, icon: AlertTriangle, color: 'text-red-600 bg-red-50 dark:bg-red-900/20' },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="card p-4 flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>
+            <div className={`w-10 h-12 rounded-xl flex items-center justify-center ${color}`}>
               <Icon size={18} />
             </div>
             <div>

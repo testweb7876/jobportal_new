@@ -97,11 +97,20 @@ exports.createStripeSession = asyncHandler(async (req, res, next) => {
 
 // ─── STRIPE: WEBHOOK ──────────────────────────────────────────────────────────
 exports.stripeWebhook = async (req, res) => {
+
+  console.log('======================');
+  console.log('STRIPE WEBHOOK HIT');
+  console.log('Headers:', req.headers['stripe-signature']);
+  console.log('======================');
+
   const sig = req.headers['stripe-signature'];
   let event;
 
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+
+    console.log('EVENT TYPE:', event.type);
+
   } catch (err) {
     logger.error('Stripe webhook signature failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -109,12 +118,25 @@ exports.stripeWebhook = async (req, res) => {
 
   try {
     if (event.type === 'checkout.session.completed') {
+
       const session = event.data.object;
+
+      console.log('PAYMENT SUCCESS');
+      console.log('Session ID:', session.id);
+      console.log('Metadata:', session.metadata);
+
       const { userId, packageId } = session.metadata;
+
+      console.log('User ID:', userId);
+      console.log('Package ID:', packageId);
 
       const invoice = await Invoice.findOneAndUpdate(
         { transactionId: session.id },
-        { paymentStatus: 'paid', paidAt: new Date(), payerTransactionNumber: session.payment_intent },
+        {
+          paymentStatus: 'paid',
+          paidAt: new Date(),
+          payerTransactionNumber: session.payment_intent
+        },
         { new: true }
       );
 
@@ -123,13 +145,15 @@ exports.stripeWebhook = async (req, res) => {
 
         const User = require('../models/User.model');
         const user = await User.findById(userId);
+
         if (user) {
           await emailService.sendPaymentConfirmation(user, invoice);
+
           await notificationService.create({
             recipientId: userId,
             type: 'payment_success',
             title: 'Payment Successful 🎉',
-            message: `Your package has been activated successfully.`,
+            message: 'Your package has been activated successfully.',
             refModel: 'Invoice',
             refId: invoice._id,
           });

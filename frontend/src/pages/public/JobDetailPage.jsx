@@ -93,11 +93,11 @@ export default function JobDetailPage() {
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => shortlistMutation.mutate()}
-                    className="w-10 h-10 rounded-xl border border-gray-200 dark:border-dark-600 flex items-center justify-center hover:border-primary-400 hover:text-primary-600 transition-colors">
+                    className="w-10 h-12 rounded-xl border border-gray-200 dark:border-dark-600 flex items-center justify-center hover:border-primary-400 hover:text-primary-600 transition-colors">
                     {shortlisted ? <BookmarkCheck size={18} className="text-primary-600" /> : <Bookmark size={18} />}
                   </button>
                   <button onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success('Link copied!') }}
-                    className="w-10 h-10 rounded-xl border border-gray-200 dark:border-dark-600 flex items-center justify-center hover:border-primary-400 hover:text-primary-600 transition-colors">
+                    className="w-10 h-12 rounded-xl border border-gray-200 dark:border-dark-600 flex items-center justify-center hover:border-primary-400 hover:text-primary-600 transition-colors">
                     <Share2 size={18} />
                   </button>
                 </div>
@@ -178,7 +178,7 @@ export default function JobDetailPage() {
                   {similarJobs.map(sj => (
                     <Link key={sj._id} to={`/jobs/${sj.slug || sj._id}`}
                       className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-dark-700 transition-colors group">
-                      <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-dark-700 flex items-center justify-center overflow-hidden border border-gray-200 dark:border-dark-600 flex-shrink-0">
+                      <div className="w-10 h-12 rounded-xl bg-gray-100 dark:bg-dark-700 flex items-center justify-center overflow-hidden border border-gray-200 dark:border-dark-600 flex-shrink-0">
                         {sj.companyId?.logo?.secureUrl
                           ? <img src={sj.companyId.logo.secureUrl} alt="" className="w-full h-full object-cover" />
                           : <Building2 size={16} className="text-gray-400" />}

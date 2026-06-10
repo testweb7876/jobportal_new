@@ -217,3 +217,31 @@ exports.getPendingBankTransfers = asyncHandler(async (req, res) => {
 
   sendSuccess(res, { transfers }, 'Pending bank transfers');
 });
+
+exports.getInvoices = asyncHandler(async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 20;
+
+  const filter = {};
+
+  if (req.query.paymentStatus) {
+    filter.paymentStatus = req.query.paymentStatus;
+  }
+
+  if (req.query.payMethod) {
+    filter.payMethod = req.query.payMethod;
+  }
+
+  const [invoices, total] = await Promise.all([
+    Invoice.find(filter)
+      .populate('uid', 'firstName lastName email')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean(),
+
+    Invoice.countDocuments(filter)
+  ]);
+
+  sendPaginated(res, invoices, total, page, limit);
+});

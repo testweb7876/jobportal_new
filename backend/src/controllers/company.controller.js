@@ -210,3 +210,33 @@ exports.verifyCompany = asyncHandler(async (req, res, next) => {
 
   sendSuccess(res, { company }, `Company ${status}`);
 });
+
+exports.getAllCompaniesAdmin = asyncHandler(async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 20;
+
+  const filter = {};
+
+  if (req.query.status)
+    filter.status = req.query.status;
+
+  if (req.query.verificationStatus)
+    filter.verificationStatus = req.query.verificationStatus;
+
+  if (req.query.keyword) {
+    filter.$or = [
+      { name: new RegExp(req.query.keyword, 'i') },
+      { email: new RegExp(req.query.keyword, 'i') }
+    ];
+  }
+
+  const companies = await Company.find(filter)
+    .populate('uid', 'firstName lastName email')
+    .sort({ createdAt: -1 })
+    .skip((page - 1) * limit)
+    .limit(limit);
+
+  const total = await Company.countDocuments(filter);
+
+  sendPaginated(res, companies, total, page, limit);
+});
