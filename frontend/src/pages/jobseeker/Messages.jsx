@@ -6,36 +6,56 @@ import { formatDistanceToNow } from 'date-fns'
 import useAuthStore from '@/store/authStore'
 import { useSocket } from '@/hooks/index' 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
+import { useLocation } from 'react-router-dom'
 
 export default function JSMessages() {
-  const [selected, setSelected] = useState(null)
-  const { user } = useAuthStore()
-  const socketRef = useSocket()
-  const qc = useQueryClient()
+  const [selected, setSelected] = useState(null);
+  const { user } = useAuthStore();
+  const socketRef = useSocket();
+  const qc = useQueryClient();
+  const location = useLocation();
+
+  const { data: conversations = [] } = useQuery({
+    queryKey: ['conversations'],
+    queryFn: () =>
+      messageAPI.getConversations().then(r => r.data?.data || []),
+  });
+
+  const { data: messagesData = [] } = useQuery({
+    queryKey: ['messages', selected?._id],
+    queryFn: () =>
+      messageAPI.getMessages(selected._id).then(r => r.data?.data || []),
+    enabled: !!selected?._id,
+  });
+
+  const convos = conversations;
+  const messages = messagesData;
 
   useEffect(() => {
-    const socket = socketRef.current
-    if (!socket) return
+    const socket = socketRef.current;
+
+    if (!socket) return;
+
     socket.on('new_message', ({ conversationId }) => {
-      qc.invalidateQueries(['messages', conversationId])
-      qc.invalidateQueries(['conversations'])
-    })
-    return () => socket.off('new_message')
-  }, [socketRef.current])
+      qc.invalidateQueries({ queryKey: ['messages', conversationId] });
+      qc.invalidateQueries({ queryKey: ['conversations'] });
+    });
 
-  const { data: conversations } = useQuery({
-    queryKey: ['conversations'],
-    queryFn: () => messageAPI.getConversations().then(r => r.data?.data || []),
-  })
+    return () => socket.off('new_message');
+  }, [qc, socketRef]);
 
-  const { data: messagesData } = useQuery({
-    queryKey: ['messages', selected?._id],
-    queryFn: () => messageAPI.getMessages(selected._id).then(r => r.data?.data || []),
-    enabled: !!selected?._id,
-  })
+  useEffect(() => {
+    if (location.state?.conversationId && convos.length > 0) {
+      const target = convos.find(
+        c => c._id === location.state.conversationId
+      );
 
-  const convos = conversations || []
-  const messages = messagesData || []
+      if (target) {
+        setSelected(target);
+      }
+    }
+  }, [convos, location.state?.conversationId]);
 
   return (
     <div className="animate-fade-in">

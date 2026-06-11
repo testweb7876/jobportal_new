@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Search, User, MapPin, Briefcase, Eye, Star } from 'lucide-react'
+import { Search, User, MapPin, Star, Eye } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { resumeAPI } from '@/services/api'
 import { Avatar, EmptyState } from '@/components/common/UI'
@@ -13,15 +13,16 @@ export default function EmpCandidates() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['candidates', debouncedSearch, page],
-    queryFn: () => resumeAPI.getAll({ 
-      keyword: debouncedSearch || undefined, 
-      page, 
-      limit: 12 
-    }).then(r => r.data),
+    queryFn: () =>
+      resumeAPI.getAll({
+        keyword: debouncedSearch || undefined,
+        page,
+        limit: 12,
+      }).then(r => r.data),
   })
 
-  const resumes = data?.data || []
-  const total = data?.pagination?.total || 0
+  const resumes    = data?.data        || []
+  const total      = data?.pagination?.total || 0
   const totalPages = data?.pagination?.pages || 1
 
   return (
@@ -58,7 +59,11 @@ export default function EmpCandidates() {
         <EmptyState
           icon={User}
           title={debouncedSearch ? 'No candidates found' : 'No candidates yet'}
-          description={debouncedSearch ? `No results for "${debouncedSearch}"` : 'Candidates will appear here once they create resumes.'}
+          description={
+            debouncedSearch
+              ? `No results for "${debouncedSearch}"`
+              : 'Candidates will appear here once they create resumes.'
+          }
         />
       )}
 
@@ -81,9 +86,9 @@ export default function EmpCandidates() {
                   <p className="text-xs text-primary-600 font-medium truncate">
                     {resume.applicationTitle}
                   </p>
-                  {resume.uid?.city && (
+                  {resume.addresses?.[0]?.addressCity && (
                     <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
-                      <MapPin size={10} /> {resume.uid.city}
+                      <MapPin size={10} /> {resume.addresses[0].addressCity}
                     </p>
                   )}
                 </div>
@@ -107,8 +112,10 @@ export default function EmpCandidates() {
                     <span className="font-bold text-primary-600">{resume.atsScore}%</span>
                   </div>
                   <div className="h-1.5 bg-gray-200 dark:bg-dark-700 rounded-full">
-                    <div className="h-1.5 bg-primary-600 rounded-full"
-                      style={{ width: `${resume.atsScore}%` }} />
+                    <div
+                      className="h-1.5 bg-primary-600 rounded-full"
+                      style={{ width: `${resume.atsScore}%` }}
+                    />
                   </div>
                 </div>
               )}

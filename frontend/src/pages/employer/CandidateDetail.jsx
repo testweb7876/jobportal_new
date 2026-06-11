@@ -1,23 +1,50 @@
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, MapPin, Mail, Phone, Download, FileText, Briefcase, GraduationCap, Globe, Linkedin, Github, MessageSquare  } from 'lucide-react'
+import {
+  ArrowLeft, MapPin, Mail, Phone, Download,
+  FileText, Briefcase, GraduationCap, MessageSquare,
+} from 'lucide-react'
 import { Avatar, Badge } from '@/components/common/UI'
 import { resumeAPI, messageAPI } from '@/services/api'
+import toast from 'react-hot-toast'
 
 export default function EmpCandidateDetail() {
   const { id } = useParams()
+  const navigate = useNavigate()
 
   const { data, isLoading } = useQuery({
     queryKey: ['resume', id],
-    queryFn: () => resumeAPI.getOne(id).then(r => r.data?.resume || r.data?.data?.resume),
+    queryFn: () =>
+      resumeAPI.getOne(id).then(r => {
+        // Handle all possible response shapes
+        return (
+          r.data?.data?.resume ||
+          r.data?.resume       ||
+          r.data?.data         ||
+          r.data
+        )
+      }),
   })
 
-  const startChat = async () => {
-    await messageAPI.getOrCreate({ recipientId: resume.uid?._id })
-    navigate('/employer/messages')
-  }
-
   const resume = data
+
+  const startChat = async () => {
+    if (!resume?.uid?._id) {
+      toast.error('Candidate info not available')
+      return
+    }
+    try {
+      const res = await messageAPI.getOrCreate({ recipientId: resume.uid._id })
+      const conversation =
+        res.data?.data?.conversation ||
+        res.data?.conversation
+      navigate('/employer/messages', {
+        state: { conversationId: conversation?._id },
+      })
+    } catch {
+      toast.error('Could not start conversation')
+    }
+  }
 
   if (isLoading) return (
     <div className="flex items-center justify-center h-64">
@@ -28,14 +55,18 @@ export default function EmpCandidateDetail() {
   if (!resume) return (
     <div className="text-center py-20">
       <p className="text-gray-500">Candidate not found</p>
-      <Link to="/employer/candidates" className="btn-primary mt-4 inline-flex">Back to Candidates</Link>
+      <Link to="/employer/candidates" className="btn-primary mt-4 inline-flex">
+        Back to Candidates
+      </Link>
     </div>
   )
 
   return (
     <div className="animate-fade-in max-w-4xl space-y-6">
+
       {/* Back */}
-      <Link to="/employer/candidates"
+      <Link
+        to="/employer/candidates"
         className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">
         <ArrowLeft size={16} /> Back to Candidates
       </Link>
@@ -45,9 +76,10 @@ export default function EmpCandidateDetail() {
         <div className="flex items-start gap-5">
           <Avatar
             src={resume.uid?.avatar?.secureUrl}
-            name={`${resume.uid?.firstName} ${resume.uid?.lastName}`}
+            name={`${resume.uid?.firstName ?? ''} ${resume.uid?.lastName ?? ''}`}
             size="xl"
           />
+
           <div className="flex-1">
             <h1 className="text-2xl font-display font-bold text-gray-900 dark:text-white">
               {resume.uid?.firstName} {resume.uid?.lastName}
@@ -83,17 +115,18 @@ export default function EmpCandidateDetail() {
             </div>
           </div>
 
-          {/* Resume File Download ke saath */}
+          {/* Action buttons */}
           <div className="flex flex-col gap-2 flex-shrink-0">
             {resume.files?.length > 0 && (
-              <a href={resume.files[0].secureUrl} target="_blank" rel="noopener noreferrer"
+              <a
+                href={resume.files[0].secureUrl}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="btn-outline btn-sm">
                 <Download size={14} /> Download CV
               </a>
             )}
-            <button
-              onClick={() => startChat()}
-              className="btn-primary btn-sm">
+            <button onClick={startChat} className="btn-primary btn-sm">
               <MessageSquare size={14} /> Message
             </button>
           </div>
@@ -101,7 +134,9 @@ export default function EmpCandidateDetail() {
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
+        {/* Main */}
         <div className="lg:col-span-2 space-y-5">
+
           {/* Skills */}
           {resume.skills && (
             <div className="card p-5">
@@ -128,7 +163,9 @@ export default function EmpCandidateDetail() {
                     <p className="text-xs text-gray-400 mt-0.5">
                       {emp.employerFromDate} — {emp.employerCurrentStatus ? 'Present' : emp.employerToDate}
                     </p>
-                    {emp.employerCity && <p className="text-xs text-gray-400">{emp.employerCity}</p>}
+                    {emp.employerCity && (
+                      <p className="text-xs text-gray-400">{emp.employerCity}</p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -147,14 +184,16 @@ export default function EmpCandidateDetail() {
                     <p className="font-semibold text-gray-900 dark:text-white">{inst.instituteCertificateName}</p>
                     <p className="text-sm text-emerald-600">{inst.institute}</p>
                     <p className="text-xs text-gray-400 mt-0.5">{inst.fromDate} — {inst.toDate}</p>
-                    {inst.instituteStudyArea && <p className="text-xs text-gray-400">{inst.instituteStudyArea}</p>}
+                    {inst.instituteStudyArea && (
+                      <p className="text-xs text-gray-400">{inst.instituteStudyArea}</p>
+                    )}
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Resume Summary */}
+          {/* Summary */}
           {resume.resume && (
             <div className="card p-5">
               <h2 className="font-display font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
@@ -167,6 +206,7 @@ export default function EmpCandidateDetail() {
 
         {/* Sidebar */}
         <div className="space-y-5">
+
           {/* Tags */}
           {resume.tags?.length > 0 && (
             <div className="card p-5">
@@ -195,28 +235,51 @@ export default function EmpCandidateDetail() {
           )}
 
           {/* Job Preferences */}
-          {resume.jobCategory && (
+          {(resume.jobCategory || resume.jobType || resume.salaryFixed) && (
             <div className="card p-5">
               <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Preferences</h3>
               <div className="space-y-2 text-sm">
                 {resume.jobCategory?.catTitle && (
                   <div className="flex justify-between">
                     <span className="text-gray-500">Category</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{resume.jobCategory.catTitle}</span>
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      {resume.jobCategory.catTitle}
+                    </span>
                   </div>
                 )}
                 {resume.jobType?.title && (
                   <div className="flex justify-between">
                     <span className="text-gray-500">Job Type</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{resume.jobType.title}</span>
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      {resume.jobType.title}
+                    </span>
                   </div>
                 )}
                 {resume.salaryFixed && (
                   <div className="flex justify-between">
                     <span className="text-gray-500">Expected Salary</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{resume.salaryFixed}</span>
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      {resume.salaryFixed}
+                    </span>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Completion */}
+          {resume.completionPercentage > 0 && (
+            <div className="card p-5">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Profile Strength</h3>
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-gray-500">Completion</span>
+                <span className="font-bold text-primary-600">{resume.completionPercentage}%</span>
+              </div>
+              <div className="h-2 bg-gray-200 dark:bg-dark-700 rounded-full">
+                <div
+                  className="h-2 bg-primary-600 rounded-full"
+                  style={{ width: `${resume.completionPercentage}%` }}
+                />
               </div>
             </div>
           )}
