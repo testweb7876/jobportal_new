@@ -37,6 +37,10 @@ const JSDashboard      = lazy(() => import('@/pages/jobseeker/Dashboard'))
 const JSProfile        = lazy(() => import('@/pages/jobseeker/Profile'))
 const JSApplications   = lazy(() => import('@/pages/jobseeker/Applications'))
 const JSResumes        = lazy(() => import('@/pages/jobseeker/Resumes'))
+const CreateResume     = lazy(() => import('@/pages/jobseeker/CreateResume'))
+const ResumeDetails    = lazy(() => import('@/pages/jobseeker/ResumeDetails'))
+const EditResume       = lazy(() => import('@/pages/jobseeker/EditResume'))
+const JSPackages = lazy(() => import('@/pages/jobseeker/Packages'))
 const JSShortlisted    = lazy(() => import('@/pages/jobseeker/Shortlisted'))
 const JSAlerts         = lazy(() => import('@/pages/jobseeker/JobAlerts'))
 const JSMessages       = lazy(() => import('@/pages/jobseeker/Messages'))
@@ -58,6 +62,7 @@ const AdminDashboard   = lazy(() => import('@/pages/admin/Dashboard'))
 const AdminUsers       = lazy(() => import('@/pages/admin/Users'))
 const AdminJobs        = lazy(() => import('@/pages/admin/Jobs'))
 const AdminCompanies   = lazy(() => import('@/pages/admin/Companies'))
+const AdminPackages    = lazy(() => import('@/pages/admin/Packages'))
 const AdminPayments    = lazy(() => import('@/pages/admin/Payments'))
 const AdminReports     = lazy(() => import('@/pages/admin/Reports'))
 const AdminSettings    = lazy(() => import('@/pages/admin/Settings'))
@@ -108,6 +113,10 @@ function App() {
           <Route path="profile"      element={<JSProfile />} />
           <Route path="applications" element={<JSApplications />} />
           <Route path="resumes"      element={<JSResumes />} />
+          <Route path="resumes/create" element={<CreateResume />} />
+          <Route path="resumes/:id" element={<ResumeDetails />} />
+          <Route path="resumes/:id/edit" element={<EditResume />} />
+          <Route path="packages" element={<JSPackages />} />
           <Route path="shortlisted"  element={<JSShortlisted />} />
           <Route path="alerts"       element={<JSAlerts />} />
           <Route path="messages"     element={<JSMessages />} />
@@ -136,6 +145,7 @@ function App() {
           <Route path="users"      element={<AdminUsers />} />
           <Route path="jobs"       element={<AdminJobs />} />
           <Route path="companies"  element={<AdminCompanies />} />
+          <Route path="packages"   element={<AdminPackages />} />
           <Route path="payments"   element={<AdminPayments />} />
           <Route path="reports"    element={<AdminReports />} />
           <Route path="settings"   element={<AdminSettings />} />

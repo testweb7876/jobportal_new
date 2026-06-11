@@ -292,3 +292,61 @@ exports.getCompanyApplicationsOverview = asyncHandler(async (req, res, next) => 
 
   sendSuccess(res, { stats, total, recent }, 'Company applications overview');
 });
+
+exports.getResume = async (req, res) => {
+  try {
+    const resume = await Resume.findOne({
+      _id: req.params.id,
+      uid: req.user._id,
+    })
+
+    if (!resume) {
+      return res.status(404).json({
+        success: false,
+        message: 'Resume not found',
+      })
+    }
+
+    res.json({
+      success: true,
+      resume,
+    })
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    })
+  }
+}
+
+exports.updateResume = async (req, res) => {
+  try {
+    const resume = await Resume.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        uid: req.user._id,
+      },
+      req.body,
+      {
+        new: true,
+      }
+    )
+
+    if (!resume) {
+      return res.status(404).json({
+        success: false,
+        message: 'Resume not found',
+      })
+    }
+
+    res.json({
+      success: true,
+      resume,
+    })
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    })
+  }
+}
