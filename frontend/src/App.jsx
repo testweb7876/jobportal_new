@@ -52,6 +52,7 @@ const EmpJobs          = lazy(() => import('@/pages/employer/Jobs'))
 const EmpPostJob       = lazy(() => import('@/pages/employer/PostJob'))
 const EmpApplications  = lazy(() => import('@/pages/employer/Applications'))
 const EmpCandidates    = lazy(() => import('@/pages/employer/Candidates'))
+const EmpCandidateDetail = lazy(() => import('@/pages/employer/CandidateDetail'))
 const EmpCompany       = lazy(() => import('@/pages/employer/Company'))
 const EmpMessages      = lazy(() => import('@/pages/employer/Messages'))
 const EmpPackages      = lazy(() => import('@/pages/employer/Packages'))
@@ -132,6 +133,7 @@ function App() {
           <Route path="jobs/:id/edit" element={<EmpPostJob />} />
           <Route path="applications" element={<EmpApplications />} />
           <Route path="candidates"   element={<EmpCandidates />} />
+          <Route path="candidates/:id"    element={<EmpCandidateDetail />} />
           <Route path="company"      element={<EmpCompany />} />
           <Route path="messages"     element={<EmpMessages />} />
           <Route path="packages"     element={<EmpPackages />} />

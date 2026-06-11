@@ -218,3 +218,16 @@ export const uploadAPI = {
   file: (formData, folder) => api.post(`/uploads/file?folder=${folder}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   deleteFile: (publicId) => api.delete(`/uploads/delete/${encodeURIComponent(publicId)}`),
 }
+
+export const alertsAPI = {
+  getAll: () => api.get('/job-alerts'),
+
+  create: (data) => api.post('/job-alerts', data),
+
+  update: (id, data) => api.patch(`/job-alerts/${id}`, data),
+
+  delete: (id) => api.delete(`/job-alerts/${id}`),
+
+  toggle: (id, status) =>
+    api.patch(`/job-alerts/${id}`, { status }),
+}

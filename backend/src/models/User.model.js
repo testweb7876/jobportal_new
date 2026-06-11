@@ -55,6 +55,23 @@ const userSchema = new mongoose.Schema({
   },
   photo: { type: String }, // legacy
 
+  // ── Job Preferences ──────────────────────────────────────────────────────────
+  jobPreferences: {
+    categories: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Category' }],
+    jobTypes:   [{ type: mongoose.Schema.Types.ObjectId, ref: 'JobType' }],
+    locations:  [String],
+    salaryMin:  Number,
+    salaryMax:  Number,
+    workplaceType: { type: String, enum: ['onsite', 'remote', 'hybrid'] },
+  },
+
+  // ── Resume (quick upload reference) ──────────────────────────────────────────
+  resume: {
+    publicId:   String,
+    secureUrl:  String,
+    filename:   String,
+    uploadedAt: Date,
+  },
   // ── Social Auth ──────────────────────────────────────────────
   socialId:       String,
   socialMedia:    { type: String, enum: ['google', 'linkedin', 'facebook', ''] },

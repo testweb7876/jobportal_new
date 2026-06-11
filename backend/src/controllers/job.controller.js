@@ -125,41 +125,35 @@ exports.getJob = asyncHandler(async (req, res, next) => {
 
 // ─── CREATE JOB ───────────────────────────────────────────────────────────────
 exports.createJob = asyncHandler(async (req, res, next) => {
-  // Check package usage
-  const pkg = await UserPackage.findOne({ uid: req.user._id, status: true, isActive: true, endDate: { $gt: new Date() } });
+  const pkg = await UserPackage.findOne({ 
+    uid: req.user._id, status: true, isActive: true, endDate: { $gt: new Date() } 
+  });
 
-  if (
-    !pkg ||
-    (pkg.remainingJobs !== -1 && pkg.remainingJobs <= 0)
-  ) {
-    return next(
-      new AppError(
-        'You have reached your job posting limit. Please upgrade your package.',
-        403
-      )
-    );
+  if (!pkg || (pkg.remainingJobs !== -1 && pkg.remainingJobs <= 0)) {
+    return next(new AppError('You have reached your job posting limit. Please upgrade your package.', 403));
   }
+
+  // ── AUTO-ATTACH COMPANY ───────────────────────────────────────
+  const Company = require('../models/Company.model');
+  const company = await Company.findOne({ uid: req.user._id });
+  // ─────────────────────────────────────────────────────────────
 
   const jobData = {
     ...req.body,
     uid: req.user._id,
+    companyId: company?._id || req.body.companyId,  // ← auto attach
+    company:   company?.name || req.body.company,    // ← legacy field
     status: req.user.role === 'admin' ? 'approved' : 'pending',
+    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    userpackageId: pkg._id,
   };
-
-  // Set expiry based on package
-  const jobDays = 30;
-  jobData.expiresAt = new Date(Date.now() + jobDays * 24 * 60 * 60 * 1000);
 
   const job = await Job.create(jobData);
 
-  // Deduct usage
   if (pkg.remainingJobs !== -1) {
-    await UserPackage.findByIdAndUpdate(pkg._id, {
-      $inc: { remainingJobs: -1 }
-    });
+    await UserPackage.findByIdAndUpdate(pkg._id, { $inc: { remainingJobs: -1 } });
   }
 
-  // Log activity
   await ActivityLog.create({
     uid: req.user._id,
     description: `Created job: ${job.title}`,
@@ -168,7 +162,6 @@ exports.createJob = asyncHandler(async (req, res, next) => {
     ipAddress: req.ip,
   });
 
-  // Invalidate cache
   await cache.delPattern('jobs:list:*');
 
   sendSuccess(res, { job }, 'Job created successfully. Pending review.', 201);

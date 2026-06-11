@@ -19,7 +19,7 @@ const alertsAPI = {
 
 const DEFAULT = {
   name: '', contactEmail: '', categoryId: '', keywords: '',
-  city: '', workplaceType: 0, jobType: 0,
+  city: '', workplaceType: 0, jobType: '',
 }
 
 const WORKPLACE_OPTIONS = [
@@ -118,6 +118,14 @@ export default function JSAlerts() {
       ...data,
       workplaceType: Number(data.workplaceType),
       status: 1,
+    }
+
+    if (!payload.jobType) {
+      delete payload.jobType
+    }
+
+    if (!payload.categoryId) {
+      delete payload.categoryId
     }
     if (editAlert) {
       updateMutation.mutate({ id: editAlert._id, data: payload })

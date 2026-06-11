@@ -8,7 +8,17 @@ import useAuthStore from '@/store/authStore'
 import { formatDistanceToNow } from 'date-fns'
 
 export default function JSDashboard() {
-  const { user } = useAuthStore()
+  const { user, updateUser } = useAuthStore()
+
+  useQuery({
+    queryKey: ['me'],
+    queryFn: () => authAPI.getMe().then(r => {
+      const freshUser = r.data?.data?.user || r.data?.user
+      if (freshUser) updateUser(freshUser)  
+      return freshUser
+    }),
+    staleTime: 30 * 1000, 
+  })
 
   const { data: appsData, isLoading: appsLoading } = useQuery({
     queryKey: ['my-applications', { limit: 5 }],
@@ -101,11 +111,11 @@ export default function JSDashboard() {
             <h3 className="font-display font-bold text-gray-900 dark:text-white mb-3">Profile Completion</h3>
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-gray-500 dark:text-gray-400">Progress</span>
-              <span className="text-sm font-bold text-primary-600">{user?.profileCompleted || 40}%</span>
+              <span className="text-sm font-bold text-primary-600">{user?.profileCompleted || 0}%</span>
             </div>
             <div className="w-full bg-gray-200 dark:bg-dark-700 rounded-full h-2 mb-3">
               <div className="bg-primary-600 h-2 rounded-full transition-all duration-500"
-                style={{ width: `${user?.profileCompleted || 40}%` }} />
+                style={{ width: `${user?.profileCompleted || 0}%` }} />
             </div>
             <Link to="/jobseeker/profile" className="btn-outline w-full justify-center text-sm">Complete Profile</Link>
           </div>

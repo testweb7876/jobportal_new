@@ -124,6 +124,7 @@ const apiPrefix = `/api/${process.env.API_VERSION || 'v1'}`;
 app.use(`${apiPrefix}/auth`,          require('./routes/auth.routes'));
 app.use(`${apiPrefix}/users`,         require('./routes/user.routes'));
 app.use(`${apiPrefix}/jobs`,          require('./routes/job.routes'));
+app.use(`${apiPrefix}/job-alerts`,    require('./routes/jobAlert.routes'));
 app.use(`${apiPrefix}/companies`,     require('./routes/company.routes'));
 app.use(`${apiPrefix}/resumes`,       require('./routes/resume.routes'));
 app.use(`${apiPrefix}/applications`,  require('./routes/application.routes'));
