@@ -72,6 +72,22 @@ const userSchema = new mongoose.Schema({
     filename:   String,
     uploadedAt: Date,
   },
+
+  // ── Profile Details ──────────────────────────────────────────────────────────
+  gender:       { type: String, enum: ['male', 'female', 'other', ''] },
+  dateOfBirth:  Date,
+  nationality:  String,
+  currentCity:  String,
+  address:      String,
+
+  // ── Professional ─────────────────────────────────────────────────────────────
+  headline:     String,  
+  bio:          String,   
+  skills:       [String], 
+  expectedSalary: String,
+  noticePeriod:   String, 
+  totalExperience: String, 
+
   // ── Social Auth ──────────────────────────────────────────────
   socialId:       String,
   socialMedia:    { type: String, enum: ['google', 'linkedin', 'facebook', ''] },

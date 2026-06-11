@@ -2,8 +2,9 @@ import { useState, useRef } from 'react'
 import { categoriesAPI } from '@/services/api'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
-import { Camera, Save, Globe, Linkedin, Github, Twitter, FileText } from 'lucide-react'
+import { Camera, Save, Globe, Linkedin, Github, Twitter, FileText, Plus, X } from 'lucide-react'
 import api from '@/services/api'
+import SkillsCard from '@/components/profile/SkillsCard'
 import { Avatar } from '@/components/common/UI'
 import useAuthStore from '@/store/authStore'
 import toast from 'react-hot-toast'
@@ -16,9 +17,19 @@ export default function JSProfile() {
 
   const { register, handleSubmit, formState: { errors, isDirty } } = useForm({
     defaultValues: {
-      firstName:              user?.firstName || '',
-      lastName:               user?.lastName  || '',
-      phone:                  user?.phone     || '',
+      firstName:    user?.firstName || '',
+      lastName:     user?.lastName  || '',
+      phone:        user?.phone     || '',
+      gender:       user?.gender    || '',
+      dateOfBirth:  user?.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : '',
+      nationality:  user?.nationality || '',
+      currentCity:  user?.currentCity || '',
+      address:      user?.address    || '',
+      headline:     user?.headline   || '',
+      bio:          user?.bio        || '',
+      totalExperience: user?.totalExperience || '',
+      expectedSalary:  user?.expectedSalary  || '',
+      noticePeriod:    user?.noticePeriod    || '',
       'socialLinks.linkedin': user?.socialLinks?.linkedin || '',
       'socialLinks.github':   user?.socialLinks?.github   || '',
       'socialLinks.twitter':  user?.socialLinks?.twitter  || '',
@@ -42,9 +53,19 @@ export default function JSProfile() {
 
   const onSubmit = (data) => {
     const payload = {
-      firstName: data.firstName,
-      lastName: data.lastName,
-      phone: data.phone,
+        firstName: data.firstName,
+        lastName:  data.lastName,
+        phone:     data.phone,
+        gender:    data.gender,
+        dateOfBirth: data.dateOfBirth || undefined,
+        nationality: data.nationality,
+        currentCity: data.currentCity,
+        address:     data.address,
+        headline:    data.headline,
+        bio:         data.bio,
+        totalExperience: data.totalExperience,
+        expectedSalary:  data.expectedSalary,
+        noticePeriod:    data.noticePeriod,
 
       socialLinks: {
         linkedin: data.socialLinks?.linkedin || '',
@@ -426,6 +447,80 @@ export default function JSProfile() {
           </button>
         </div>
       </div>
+
+      {/* Gender, DOB, Nationality — Personal Info card ke andar */}
+      <div className="grid grid-cols-3 gap-4">
+        <div>
+          <label className="label">Gender</label>
+          <select {...register('gender')} className="input">
+            <option value="">Select</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label className="label">Date of Birth</label>
+          <input {...register('dateOfBirth')} type="date" className="input" />
+        </div>
+        <div>
+          <label className="label">Nationality</label>
+          <input {...register('nationality')} placeholder="e.g. Indian" className="input" />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="label">Current City</label>
+          <input {...register('currentCity')} placeholder="e.g. Mumbai" className="input" />
+        </div>
+        <div>
+          <label className="label">Address</label>
+          <input {...register('address')} placeholder="Street address" className="input" />
+        </div>
+      </div>
+
+      {/* ── Professional Info ──────────────────────────────────── */}
+      <div className="border-t border-gray-100 dark:border-dark-700 pt-5">
+        <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Professional Details</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="label">Professional Headline</label>
+            <input {...register('headline')} placeholder="e.g. Senior React Developer with 5+ years" className="input" />
+          </div>
+          <div>
+            <label className="label">Bio / About Me</label>
+            <textarea {...register('bio')} rows={4} placeholder="Tell employers about yourself..." className="input resize-none" />
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="label">Total Experience</label>
+              <select {...register('totalExperience')} className="input">
+                <option value="">Select</option>
+                {['Fresher', '1 year', '2 years', '3 years', '4 years', '5 years', '6-8 years', '9-12 years', '12+ years'].map(v => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">Expected Salary</label>
+              <input {...register('expectedSalary')} placeholder="e.g. 8 LPA" className="input" />
+            </div>
+            <div>
+              <label className="label">Notice Period</label>
+              <select {...register('noticePeriod')} className="input">
+                <option value="">Select</option>
+                {['Immediate', '15 days', '30 days', '60 days', '90 days'].map(v => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Skills ─────────────────────────────────────────────────── */}
+      <SkillsCard user={user} updateUser={updateUser} qc={qc} />
 
       {/* ── Email (read-only) ──────────────────────────────────────────── */}
       <div className="card p-6">
