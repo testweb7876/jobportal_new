@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react'
+import { categoriesAPI } from '@/services/api'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
-import { Camera, Save, Globe, Linkedin, Github, Twitter } from 'lucide-react'
+import { Camera, Save, Globe, Linkedin, Github, Twitter, FileText } from 'lucide-react'
 import api from '@/services/api'
 import { Avatar } from '@/components/common/UI'
 import useAuthStore from '@/store/authStore'
@@ -29,7 +30,8 @@ export default function JSProfile() {
   const updateMutation = useMutation({
     mutationFn: (payload) => api.patch('/users/profile', payload),
     onSuccess: (res) => {
-      updateUser(res.data.user)
+      const updatedUser = res.data?.data?.user || res.data?.user
+      updateUser(updatedUser)   
       toast.success('Profile updated!')
       qc.invalidateQueries(['me'])
     },
@@ -41,17 +43,48 @@ export default function JSProfile() {
   const onSubmit = (data) => {
     const payload = {
       firstName: data.firstName,
-      lastName:  data.lastName,
-      phone:     data.phone,
+      lastName: data.lastName,
+      phone: data.phone,
+
       socialLinks: {
-        linkedin: data['socialLinks.linkedin'],
-        github:   data['socialLinks.github'],
-        twitter:  data['socialLinks.twitter'],
-        website:  data['socialLinks.website'],
-      }
+        linkedin: data.socialLinks?.linkedin || '',
+        github: data.socialLinks?.github || '',
+        twitter: data.socialLinks?.twitter || '',
+        website: data.socialLinks?.website || '',
+      },
     }
+
+    console.log(payload)
+
     updateMutation.mutate(payload)
   }
+
+  // categoriesData and jobTypesData are used in the Job Preferences section, which is not included in this snippet but is part of the full Profile page.
+  const { data: categoriesData } = useQuery({
+    queryKey: ['categories'],
+    queryFn: () => categoriesAPI.getCategories().then(r => r.data?.data?.categories || r.data?.categories || r.data?.data || []),
+  })
+  const { data: jobTypesData } = useQuery({
+    queryKey: ['jobTypes'],
+    queryFn: () => categoriesAPI.getJobTypes().then(r => r.data?.data?.jobTypes || r.data?.jobTypes || r.data?.data || []),
+  })
+
+  // Add this mutation:
+  const prefMutation = useMutation({
+    mutationFn: (payload) => api.patch('/users/profile', { jobPreferences: payload }),
+    onSuccess: (res) => {
+      const updatedUser = res.data?.data?.user || res.data?.user
+      updateUser(updatedUser)
+      toast.success('Job preferences saved!')
+      qc.invalidateQueries(['me'])
+    },
+    onError: () => toast.error('Failed to save preferences'),
+  })
+
+  // Add local state for preferences:
+  const [selectedCategories, setSelectedCategories] = useState(user?.jobPreferences?.categories || [])
+  const [selectedJobTypes, setSelectedJobTypes]     = useState(user?.jobPreferences?.jobTypes || [])
+  const [workplaceType, setWorkplaceType]           = useState(user?.jobPreferences?.workplaceType || '')
 
   // ── Avatar upload ─────────────────────────────────────────────────────────
   const handleAvatarChange = async (e) => {
@@ -64,7 +97,7 @@ export default function JSProfile() {
       const res = await api.post('/users/avatar', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
-      updateUser({ avatar: res.data.avatar })
+      updateUser({ avatar: res.data.data?.avatar || res.data.avatar, profileCompleted: res.data.data?.profileCompleted || res.data.profileCompleted })
       toast.success('Avatar updated!')
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to upload avatar')
@@ -73,13 +106,35 @@ export default function JSProfile() {
     }
   }
 
+  const handleResumeUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const formData = new FormData()
+    formData.append('resume', file)
+
+    try {
+      const res = await api.post('/users/resume', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+
+      updateUser({ ...user, resume: res.data.resume, profileCompleted: res.data.profileCompleted })
+
+      toast.success('Resume uploaded!')
+    } catch (err) {
+      toast.error('Upload failed')
+    }
+  }
+
   // ── Profile completion ────────────────────────────────────────────────────
   const completionTasks = [
     { label: 'Add profile photo',  done: !!user?.avatar?.secureUrl },
     { label: 'Fill in basic info', done: !!(user?.firstName && user?.lastName && user?.phone) },
     { label: 'Add social links',   done: !!(user?.socialLinks?.linkedin || user?.socialLinks?.website) },
-    { label: 'Upload a resume',    done: false },
-    { label: 'Set job preferences',done: false },
+    { label: 'Upload a resume',    done: !!user?.resume?.secureUrl,},
+    { label: 'Set job preferences', done: !!user?.jobPreferences?.categories?.length || !!user?.jobPreferences?.jobTypes?.length, },
   ]
   const completionPct = Math.round(
     (completionTasks.filter(t => t.done).length / completionTasks.length) * 100
@@ -234,6 +289,143 @@ export default function JSProfile() {
           </div>
         </div>
       </form>
+
+      {/* ── Resume Upload ───────────────────────────────────────────────────── */}
+      <div className="card p-6">
+        <h2 className="font-display font-bold text-gray-900 dark:text-white mb-4">Resume</h2>
+        <div className="flex items-center gap-4">
+          <div className="flex-1">
+            {user?.resume?.secureUrl ? (
+              <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-xl">
+                <div className="w-8 h-8 bg-green-100 dark:bg-green-800 rounded-lg flex items-center justify-center">
+                  <FileText size={16} className="text-green-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                    {user.resume.filename || 'Resume uploaded'}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {user.resume.uploadedAt
+                      ? new Date(user.resume.uploadedAt).toLocaleDateString()
+                      : ''}
+                  </p>
+                </div>
+                <a
+                  href={user.resume.secureUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-outline btn-sm">
+                  View
+                </a>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                No resume uploaded yet. Upload a PDF or Word document.
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="btn-primary cursor-pointer">
+              {avatarLoading ? 'Uploading...' : user?.resume?.secureUrl ? 'Replace' : 'Upload Resume'}
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx"
+                className="hidden"
+                onChange={handleResumeUpload}
+              />
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Job Preferences ─────────────────────────────────────────────────── */}
+      <div className="card p-6 space-y-5">
+        <h2 className="font-display font-bold text-gray-900 dark:text-white">Job Preferences</h2>
+
+        {/* Categories */}
+        <div>
+          <label className="label">Preferred Job Categories</label>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {(categoriesData || []).map(cat => {
+              const selected = selectedCategories.includes(cat._id)
+              return (
+                <button
+                  key={cat._id}
+                  type="button"
+                  onClick={() => setSelectedCategories(prev =>
+                    selected ? prev.filter(id => id !== cat._id) : [...prev, cat._id]
+                  )}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
+                    ${selected
+                      ? 'bg-primary-600 text-white border-primary-600'
+                      : 'bg-white dark:bg-dark-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-dark-600 hover:border-primary-400'
+                    }`}>
+                  {cat.catTitle}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Job Types */}
+        <div>
+          <label className="label">Job Types</label>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {(jobTypesData || []).map(jt => {
+              const selected = selectedJobTypes.includes(jt._id)
+              return (
+                <button
+                  key={jt._id}
+                  type="button"
+                  onClick={() => setSelectedJobTypes(prev =>
+                    selected ? prev.filter(id => id !== jt._id) : [...prev, jt._id]
+                  )}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
+                    ${selected
+                      ? 'bg-primary-600 text-white border-primary-600'
+                      : 'bg-white dark:bg-dark-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-dark-600 hover:border-primary-400'
+                    }`}>
+                  {jt.title}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Workplace Type */}
+        <div>
+          <label className="label">Preferred Workplace</label>
+          <div className="flex gap-3 mt-2">
+            {['onsite', 'remote', 'hybrid'].map(type => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => setWorkplaceType(type)}
+                className={`flex-1 py-2 rounded-xl text-sm font-medium border capitalize transition-colors
+                  ${workplaceType === type
+                    ? 'bg-primary-600 text-white border-primary-600'
+                    : 'bg-white dark:bg-dark-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-dark-600'
+                  }`}>
+                {type}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex justify-end pt-2">
+          <button
+            type="button"
+            disabled={prefMutation.isPending}
+            onClick={() => prefMutation.mutate({
+              categories: selectedCategories,
+              jobTypes: selectedJobTypes,
+              workplaceType,
+            })}
+            className="btn-primary">
+            {prefMutation.isPending ? 'Saving...' : <><Save size={15} /> Save Preferences</>}
+          </button>
+        </div>
+      </div>
 
       {/* ── Email (read-only) ──────────────────────────────────────────── */}
       <div className="card p-6">

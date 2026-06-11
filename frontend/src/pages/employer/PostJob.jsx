@@ -36,6 +36,10 @@ export default function EmpPostJob() {
       hideSalaryRange: true,
       isUrgent: false,
       jobApplyLink: false,
+      careerLevel: '',
+      educationId: '',
+      showContact: false,
+      currency: 'USD',
     }
   })
 
@@ -70,6 +74,10 @@ export default function EmpPostJob() {
         contactPhone: jobData.contactPhone,
         jobApplyLink: jobData.jobApplyLink,
         jobLink: jobData.jobLink,
+        careerLevel: jobData.careerLevel?._id || jobData.careerLevel || '',
+        educationId: jobData.educationId?._id || jobData.educationId || '',
+        showContact: jobData.showContact || false,
+        currency: jobData.currency || 'USD',
       })
       setDescription(jobData.description || '')
       setQualifications(jobData.qualifications || '')
@@ -81,6 +89,11 @@ export default function EmpPostJob() {
   const { data: categoriesData } = useQuery({
     queryKey: ['categories'],
     queryFn: () => categoriesAPI.getCategories().then(r => r.data?.categories || []),
+    staleTime: Infinity,
+  })
+  const { data: careerLevelsData } = useQuery({
+    queryKey: ['career-levels'],
+    queryFn: () => categoriesAPI.getCareerLevels().then(r => r.data?.data || []),
     staleTime: Infinity,
   })
   const { data: jobTypesData } = useQuery({
@@ -105,9 +118,25 @@ export default function EmpPostJob() {
     onError: (err) => toast.error(err.response?.data?.message || 'Failed to save job'),
   })
 
+  // const onSubmit = (data) => {
+  //   if (!description.trim()) { toast.error('Job description is required'); return }
+  //   mutation.mutate({ ...data, description, qualifications, tags })
+  // }
+
   const onSubmit = (data) => {
     if (!description.trim()) { toast.error('Job description is required'); return }
-    mutation.mutate({ ...data, description, qualifications, tags })
+    
+    // ── Remove empty ObjectId fields ──────────────────────────
+    const cleanData = { ...data, description, qualifications, tags }
+    if (!cleanData.careerLevel) delete cleanData.careerLevel
+    if (!cleanData.educationId) delete cleanData.educationId
+    if (!cleanData.categoryId)  delete cleanData.categoryId
+    if (!cleanData.jobType)     delete cleanData.jobType
+    if (!cleanData.subcategoryId) delete cleanData.subcategoryId
+    if (!cleanData.departmentId)  delete cleanData.departmentId
+    // ──────────────────────────────────────────────────────────
+    
+    mutation.mutate(cleanData)
   }
 
   const addTag = () => {
@@ -189,6 +218,27 @@ export default function EmpPostJob() {
                 <select {...register('jobType')} className="input">
                   <option value="">Select Type</option>
                   {jobTypesData?.map(t => <option key={t._id} value={t._id}>{t.title}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Career Level & Education — grid cols-2 */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">Career Level</label>
+                <select {...register('careerLevel')} className="input">
+                  <option value="">Select Career Level</option>
+                  {careerLevelsData?.map(c => (
+                    <option key={c._id} value={c._id}>{c.title}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="label">Currency</label>
+                <select {...register('currency')} className="input">
+                  {['USD', 'EUR', 'GBP', 'INR', 'AED', 'SAR'].map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -318,6 +368,16 @@ export default function EmpPostJob() {
         {/* ── Contact ────────────────────────────────────────────────────── */}
         <div className="card p-6">
           <h2 className="font-display font-bold text-gray-900 dark:text-white mb-5">Contact Information</h2>
+
+            <div className="flex items-center gap-3 mb-4 p-3 bg-gray-50 dark:bg-dark-800 rounded-xl">
+              <input {...register('showContact')} type="checkbox" id="showContact"
+                className="w-4 h-4 rounded text-primary-600" />
+              <label htmlFor="showContact" className="text-sm font-medium text-gray-700 dark:text-gray-200 cursor-pointer">
+                Show contact details publicly on job listing
+              </label>
+            </div>
+
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Contact Email</label>
