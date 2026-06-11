@@ -1,8 +1,8 @@
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, MapPin, Mail, Phone, Download, FileText, Briefcase, GraduationCap, Globe, Linkedin, Github } from 'lucide-react'
-import { resumeAPI } from '@/services/api'
+import { ArrowLeft, MapPin, Mail, Phone, Download, FileText, Briefcase, GraduationCap, Globe, Linkedin, Github, MessageSquare  } from 'lucide-react'
 import { Avatar, Badge } from '@/components/common/UI'
+import { resumeAPI, messageAPI } from '@/services/api'
 
 export default function EmpCandidateDetail() {
   const { id } = useParams()
@@ -11,6 +11,11 @@ export default function EmpCandidateDetail() {
     queryKey: ['resume', id],
     queryFn: () => resumeAPI.getOne(id).then(r => r.data?.resume || r.data?.data?.resume),
   })
+
+  const startChat = async () => {
+    await messageAPI.getOrCreate({ recipientId: resume.uid?._id })
+    navigate('/employer/messages')
+  }
 
   const resume = data
 
@@ -78,13 +83,20 @@ export default function EmpCandidateDetail() {
             </div>
           </div>
 
-          {/* Resume File Download */}
-          {resume.files?.length > 0 && (
-            <a href={resume.files[0].secureUrl} target="_blank" rel="noopener noreferrer"
-              className="btn-outline btn-sm flex-shrink-0">
-              <Download size={14} /> Download CV
-            </a>
-          )}
+          {/* Resume File Download ke saath */}
+          <div className="flex flex-col gap-2 flex-shrink-0">
+            {resume.files?.length > 0 && (
+              <a href={resume.files[0].secureUrl} target="_blank" rel="noopener noreferrer"
+                className="btn-outline btn-sm">
+                <Download size={14} /> Download CV
+              </a>
+            )}
+            <button
+              onClick={() => startChat()}
+              className="btn-primary btn-sm">
+              <MessageSquare size={14} /> Message
+            </button>
+          </div>
         </div>
       </div>
 

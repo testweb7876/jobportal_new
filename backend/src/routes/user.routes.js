@@ -14,6 +14,9 @@ function calcProfileCompleted(user) {
     !!(user.socialLinks?.linkedin || user.socialLinks?.website),
     !!user.resume?.secureUrl,
     !!(user.jobPreferences?.categories?.length || user.jobPreferences?.jobTypes?.length),
+    !!(user.headline && user.bio),          // ← new
+    !!user.skills?.length,                   // ← new
+    !!(user.currentCity || user.nationality), // ← new
   ];
   return Math.round((tasks.filter(Boolean).length / tasks.length) * 100);
 }
@@ -26,35 +29,52 @@ router.get('/profile', protect, asyncHandler(async (req, res) => {
 router.patch('/profile', protect, asyncHandler(async (req, res) => {
   const disallowed = ['password', 'email', 'role', 'status', 'isVerified'];
   disallowed.forEach(f => delete req.body[f]);
-
   const user = await User.findById(req.user._id);
   if (!user) throw new AppError('User not found', 404);
-
   user.firstName = req.body.firstName || user.firstName;
-  user.lastName  = req.body.lastName  || user.lastName;
-  user.phone     = req.body.phone     || user.phone;
-
+  user.lastName  = req.body.lastName || user.lastName;
+  user.phone     = req.body.phone || user.phone;
+  if (req.body.gender !== undefined)
+    user.gender = req.body.gender;
+  if (req.body.dateOfBirth)
+    user.dateOfBirth = req.body.dateOfBirth;
+  if (req.body.nationality !== undefined)
+    user.nationality = req.body.nationality;
+  if (req.body.currentCity !== undefined)
+    user.currentCity = req.body.currentCity;
+  if (req.body.address !== undefined)
+    user.address = req.body.address;
+  if (req.body.headline !== undefined)
+    user.headline = req.body.headline;
+  if (req.body.bio !== undefined)
+    user.bio = req.body.bio;
+  if (req.body.skills !== undefined)
+    user.skills = req.body.skills;
+  if (req.body.expectedSalary !== undefined)
+    user.expectedSalary = req.body.expectedSalary;
+  if (req.body.noticePeriod !== undefined)
+    user.noticePeriod = req.body.noticePeriod;
+  if (req.body.totalExperience !== undefined)
+    user.totalExperience = req.body.totalExperience;
   if (req.body.socialLinks) {
-    user.socialLinks = { ...user.socialLinks.toObject(), ...req.body.socialLinks };
+    user.socialLinks = {
+      ...(user.socialLinks?.toObject?.() || {}),
+      ...req.body.socialLinks
+    };
   }
-
   if (req.body.jobPreferences) {
-    user.jobPreferences = { ...(user.jobPreferences?.toObject?.() || {}), ...req.body.jobPreferences };
+    user.jobPreferences = {
+      ...(user.jobPreferences?.toObject?.() || {}),
+      ...req.body.jobPreferences
+    };
   }
-
-  // ── Recalculate profileCompleted ──────────────────────────────
-  const tasks = [
-    !!user.avatar?.secureUrl,
-    !!(user.firstName && user.lastName && user.phone),
-    !!(user.socialLinks?.linkedin || user.socialLinks?.website),
-    !!user.resume?.secureUrl,
-    !!(user.jobPreferences?.categories?.length || user.jobPreferences?.jobTypes?.length),
-  ];
-  user.profileCompleted = Math.round((tasks.filter(Boolean).length / tasks.length) * 100);
-  // ─────────────────────────────────────────────────────────────
-
+  user.profileCompleted = calcProfileCompleted(user);
   await user.save();
-  sendSuccess(res, { user: user.toPublicJSON() }, 'Profile updated');
+  sendSuccess(
+    res,
+    { user: user.toPublicJSON() },
+    'Profile updated'
+  );
 }));
 
 router.post('/avatar', protect, uploadImage.single('avatar'), asyncHandler(async (req, res, next) => {
@@ -94,5 +114,7 @@ router.post('/resume', protect, uploadFile.single('resume'), asyncHandler(async 
   await user.save();
   res.json({ success: true, resume: user.resume, profileCompleted: user.profileCompleted });
 }));
+
+
 
 module.exports = router;

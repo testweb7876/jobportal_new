@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { MapPin, Briefcase, Clock, DollarSign, Users, Building2, Bookmark, BookmarkCheck, Share2, ArrowLeft, CheckCircle, AlertCircle, Globe } from 'lucide-react'
-import { jobsAPI, applicationAPI } from '@/services/api'
+import { MapPin, Briefcase, Clock, DollarSign, Users, Building2, Bookmark, BookmarkCheck, Share2, ArrowLeft, CheckCircle, AlertCircle, Globe, MessageSquare  } from 'lucide-react'
+import { jobsAPI, applicationAPI, messageAPI  } from '@/services/api'
 import { Badge, Modal, Skeleton, StatusBadge, Avatar } from '@/components/common/UI'
 import { formatDistanceToNow, format } from 'date-fns'
 import useAuthStore from '@/store/authStore'
@@ -26,6 +26,11 @@ export default function JobDetailPage() {
       return r.data
     }),
   })
+
+  const startChat = async () => {
+    await messageAPI.getOrCreate({ recipientId: job.uid, jobId: job._id })
+    navigate('/jobseeker/messages')
+  }
 
   const applyMutation = useMutation({
     mutationFn: (formData) => applicationAPI.apply(formData),
@@ -227,6 +232,14 @@ export default function JobDetailPage() {
                 <p className="text-xs text-center text-gray-400 mt-3">
                   Apply before {format(new Date(job.expiresAt), 'MMM dd, yyyy')}
                 </p>
+              )}
+
+              {isAuthenticated && user?.role === 'jobseeker' && !isExpired && !isOwner && (
+                <button
+                  onClick={startChat}
+                  className="btn-outline w-full justify-center mt-3">
+                  <MessageSquare size={15} /> Message Employer
+                </button>
               )}
 
               <div className="border-t border-gray-100 dark:border-dark-700 mt-4 pt-4 space-y-2.5 text-sm">

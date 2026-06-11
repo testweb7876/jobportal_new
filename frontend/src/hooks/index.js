@@ -1,5 +1,5 @@
-// ── useDebounce ───────────────────────────────────────────────────────────────
 import { useState, useEffect, useCallback, useRef } from 'react'
+import useAuthStore from '@/store/authStore'
 
 export function useDebounce(value, delay = 300) {
   const [debouncedValue, setDebouncedValue] = useState(value)
@@ -91,33 +91,21 @@ export function useWindowSize() {
 // ── useSocket ─────────────────────────────────────────────────────────────────
 export function useSocket() {
   const socketRef = useRef(null)
-  const [connected, setConnected] = useState(false)
+  const { accessToken } = useAuthStore()   
 
-  const connect = useCallback((token) => {
-    if (socketRef.current?.connected) return
+  useEffect(() => {
+    if (!accessToken || socketRef.current) return
     import('socket.io-client').then(({ io }) => {
-      socketRef.current = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000', {
-        auth: { token },
-        transports: ['websocket'],
-      })
-      socketRef.current.on('connect', () => setConnected(true))
-      socketRef.current.on('disconnect', () => setConnected(false))
+      socketRef.current = io(
+        import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000',
+        { auth: { token: accessToken }, transports: ['websocket'] }
+      )
     })
-  }, [])
+    return () => {
+      socketRef.current?.disconnect()
+      socketRef.current = null
+    }
+  }, [accessToken])
 
-  const disconnect = useCallback(() => {
-    socketRef.current?.disconnect()
-    setConnected(false)
-  }, [])
-
-  const emit = useCallback((event, data) => {
-    socketRef.current?.emit(event, data)
-  }, [])
-
-  const on = useCallback((event, handler) => {
-    socketRef.current?.on(event, handler)
-    return () => socketRef.current?.off(event, handler)
-  }, [])
-
-  return { socket: socketRef.current, connected, connect, disconnect, emit, on }
+  return socketRef
 }

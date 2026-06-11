@@ -145,7 +145,7 @@ export default function Navbar() {
                         </div>
                         {[
                           { icon: LayoutDashboard, label: 'Dashboard', to: getDashboardLink() },
-                          { icon: User, label: 'Profile', to: `/${user?.role === 'employer' ? 'employer' : 'jobseeker'}/profile` },
+                          { icon: User, label: 'Profile', to: user?.role === 'employer' ? '/employer/company' : '/jobseeker/profile' },
                           { icon: Settings, label: 'Settings', to: `/${user?.role === 'employer' ? 'employer' : 'jobseeker'}/settings` },
                         ].map(item => (
                           <Link key={item.label} to={item.to}

@@ -1,14 +1,27 @@
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useState, useEffect  } from 'react'
 import { MessageSquare, Send } from 'lucide-react'
 import { messageAPI } from '@/services/api'
 import { EmptyState, Avatar } from '@/components/common/UI'
 import { formatDistanceToNow } from 'date-fns'
 import useAuthStore from '@/store/authStore'
+import { useSocket } from '@/hooks/index' 
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 export default function JSMessages() {
   const [selected, setSelected] = useState(null)
   const { user } = useAuthStore()
+  const socketRef = useSocket()
+  const qc = useQueryClient()
+
+  useEffect(() => {
+    const socket = socketRef.current
+    if (!socket) return
+    socket.on('new_message', ({ conversationId }) => {
+      qc.invalidateQueries(['messages', conversationId])
+      qc.invalidateQueries(['conversations'])
+    })
+    return () => socket.off('new_message')
+  }, [socketRef.current])
 
   const { data: conversations } = useQuery({
     queryKey: ['conversations'],
