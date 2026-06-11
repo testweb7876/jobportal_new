@@ -18,6 +18,7 @@ const jobseekerNav = [
   { icon: User, label: 'My Resumes', href: '/jobseeker/resumes' },
   { icon: Bookmark, label: 'Shortlisted', href: '/jobseeker/shortlisted' },
   { icon: Bell, label: 'Job Alerts', href: '/jobseeker/alerts' },
+  { icon: Package,       label: 'Packages',    href: '/jobseeker/packages' },
   { icon: MessageSquare, label: 'Messages', href: '/jobseeker/messages' },
   { icon: Settings, label: 'Settings', href: '/jobseeker/settings' },
 ]

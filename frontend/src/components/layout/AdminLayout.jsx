@@ -4,16 +4,17 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { clsx } from 'clsx'
 import useAuthStore from '@/store/authStore'
 import { Avatar } from '@/components/common/UI'
-import { LayoutDashboard, Users, Briefcase, Building2, CreditCard, Flag, Settings, LogOut, Menu, ChevronRight, Bell, ShieldCheck } from 'lucide-react'
+import { LayoutDashboard, Users, Briefcase, Building2, CreditCard, Flag, Settings, LogOut, Menu, ChevronRight, Bell, ShieldCheck, Package } from 'lucide-react'
 
 const adminNav = [
-  { icon: LayoutDashboard, label: 'Dashboard', href: '/admin/dashboard' },
-  { icon: Users, label: 'Users', href: '/admin/users' },
-  { icon: Briefcase, label: 'Jobs', href: '/admin/jobs' },
-  { icon: Building2, label: 'Companies', href: '/admin/companies' },
-  { icon: CreditCard, label: 'Payments', href: '/admin/payments' },
-  { icon: Flag, label: 'Reports', href: '/admin/reports' },
-  { icon: Settings, label: 'Settings', href: '/admin/settings' },
+  { icon: LayoutDashboard, label: 'Dashboard',  href: '/admin/dashboard' },
+  { icon: Users,           label: 'Users',       href: '/admin/users' },
+  { icon: Briefcase,       label: 'Jobs',        href: '/admin/jobs' },
+  { icon: Building2,       label: 'Companies',   href: '/admin/companies' },
+  { icon: Package,         label: 'Packages',    href: '/admin/packages' },
+  { icon: CreditCard,      label: 'Payments',    href: '/admin/payments' },
+  { icon: Flag,            label: 'Reports',     href: '/admin/reports' },
+  { icon: Settings,        label: 'Settings',    href: '/admin/settings' },
 ]
 
 export default function AdminLayout() {
