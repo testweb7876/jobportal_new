@@ -11,8 +11,6 @@
 [![Socket.io](https://img.shields.io/badge/Socket.io-4-010101?style=for-the-badge&logo=socket.io)](https://socket.io)
 [![Stripe](https://img.shields.io/badge/Stripe-Payments-635BFF?style=for-the-badge&logo=stripe&logoColor=white)](https://stripe.com)
 
-[Live Demo](#) · [API Docs](#api-documentation) · [Report Bug](#) · [Request Feature](#)
-
 </div>
 
 ---
