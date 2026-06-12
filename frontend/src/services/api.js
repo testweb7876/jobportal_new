@@ -150,7 +150,15 @@ export const resumeAPI = {
   update: (id, data) => api.patch(`/resumes/${id}`, data),
   delete: (id) => api.delete(`/resumes/${id}`),
   getMyResumes: () => api.get('/resumes/my'),
-  uploadFile: (id, formData) => api.post(`/resumes/${id}/upload`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  uploadFile:       (id, formData) =>
+    api.post(`/resumes/${id}/upload`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  deleteFile:       (id, publicId) =>
+    api.delete(`/resumes/${id}/files/${encodeURIComponent(publicId)}`),
+  setVisibility:    (id, data)     => api.patch(`/resumes/${id}/visibility`, data),
+  generateShareLink:(id)           => api.post(`/resumes/${id}/share`),
+  toggleFeatured:   (id)           => api.patch(`/resumes/${id}/feature`),
 }
 
 export const packageAPI = {
@@ -159,13 +167,24 @@ export const packageAPI = {
   getMyPackage: () => api.get('/packages/my-package'),
 }
 
+export const settingsAPI = {
+  getBankDetails:    () => api.get('/admin/settings/bank/public'),  
+  updateBankDetails: (data) => api.patch('/admin/settings/bank', data),  
+}
+
 export const paymentAPI = {
   createStripeSession: (data) => api.post('/payments/stripe/create-session', data),
-  createPaypalOrder: (data) => api.post('/payments/paypal/create-order', data),
-  capturePaypalOrder: (data) => api.post('/payments/paypal/capture', data),
-  submitBankTransfer: (formData) => api.post('/payments/bank/submit-proof', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
-  activateFree: (data) => api.post('/payments/free/activate', data),
-  history: (params) => api.get('/payments/history', { params }),
+  createPaypalOrder:   (data) => api.post('/payments/paypal/create-order', data),
+  capturePaypal:       (data) => api.post('/payments/paypal/capture', data),
+  submitBankProof: (formData) =>
+  api.post('/payments/bank/submit-proof', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  }),
+  requestRefund:  (id)   => api.post(`/payments/${id}/refund`),
+  activateFree:   (data) => api.post('/payments/free/activate', data),
+  history:        (params) => api.get('/payments/history', { params }),
 }
 
 export const notificationAPI = {
@@ -174,6 +193,18 @@ export const notificationAPI = {
   markAllRead: () => api.patch('/notifications/read-all'),
   delete: (id) => api.delete(`/notifications/${id}`),
   unreadCount: () => api.get('/notifications/unread-count'),
+}
+
+export const interviewsAPI = {
+  getUpcoming: () => api.get('/interviews'),
+}
+
+export const followersAPI = {
+  getFollowing: () => api.get('/followers/following'),
+}
+ 
+export const reportsAPI = {
+  submit: (data) => api.post('/reports', data),
 }
 
 export const messageAPI = {
@@ -191,10 +222,18 @@ export const adminAPI = {
   revenue: (params) => api.get('/admin/revenue', { params }),
   getReports: (params) => api.get('/admin/reports', { params }),
   resolveReport: (id, data) => api.patch(`/admin/reports/${id}`, data),
-  getBankTransfers: () => api.get('/admin/bank-transfers'),
+  getBankTransfers: () => api.get('/payments/bank-transfers'),
   approveBankTransfer: (id) => api.patch(`/payments/bank/${id}/approve`),
   activityLogs: (params) => api.get('/admin/activity-logs', { params }),
   getInvoices: (params) => api.get('/admin/invoices', { params }),
+  getSystemErrors:   ()         => api.get('/admin/system-errors'),
+  getActivityLogs:   (params)   => api.get('/admin/activity-logs', { params }),
+  createCategory:    (data)     => api.post('/categories/categories', data),
+  updateCategory:    (id, data) => api.patch(`/categories/categories/${id}`, data),
+  deleteCategory:    (id)       => api.delete(`/categories/categories/${id}`),
+  createJobType:     (data)     => api.post('/categories/job-types', data),
+  updateJobType:     (id, data) => api.patch(`/categories/job-types/${id}`, data),
+  deleteJobType:     (id)       => api.delete(`/categories/job-types/${id}`),
 }
 
 export const searchAPI = {

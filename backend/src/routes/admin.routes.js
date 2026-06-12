@@ -4,6 +4,7 @@ const adminController = require('../controllers/admin.controller');
 const { protect, adminOnly } = require('../middleware/auth.middleware');
 const paymentController = require('../controllers/payment.controller');
 
+router.get('/settings/bank/public', adminController.getBankDetails)
 router.use(protect, adminOnly);
 
 router.get('/dashboard',                   adminController.getDashboard);
@@ -18,5 +19,6 @@ router.get('/system-errors',               adminController.getSystemErrors);
 router.get('/activity-logs',               adminController.getActivityLogs);
 router.get('/bank-transfers',              adminController.getPendingBankTransfers);
 router.get('/invoices', protect, adminOnly, adminController.getInvoices);
+router.patch('/settings/bank',  adminController.updateBankDetails)
 
 module.exports = router;

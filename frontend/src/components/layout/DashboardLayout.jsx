@@ -10,6 +10,7 @@ import {
   ChevronRight, User
 } from 'lucide-react'
 import { useEffect } from 'react'
+import NotificationPanel from '@/components/common/NotificationPanel'
 
 const jobseekerNav = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/jobseeker/dashboard' },
@@ -156,6 +157,7 @@ export default function DashboardLayout() {
               {location.pathname.split('/').pop().replace('-', ' ') || 'Dashboard'}
             </p>
           </div>
+          <NotificationPanel isAuthenticated={true} />
 
           {/* Quick actions */}
           <div className="flex items-center gap-2">

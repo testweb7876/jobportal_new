@@ -6,13 +6,6 @@ const { authLimiter } = require('../middleware/auth.middleware');
 const validate = require('../middleware/validate.middleware');
 const { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, changePasswordSchema } = require('../validators/auth.validator');
 
-/**
- * @swagger
- * tags:
- *   name: Auth
- *   description: Authentication & Authorization
- */
-
 router.post('/register',          authLimiter, validate(registerSchema),       authController.register);
 router.post('/login',             authLimiter, validate(loginSchema),           authController.login);
 router.post('/refresh-token',                                                    authController.refreshToken);

@@ -1,6 +1,6 @@
 # 🚀 Job Portal Backend — Enterprise SaaS API
 
-Production-grade MERN Job Portal backend with full authentication, subscriptions, payments, real-time chat, notifications, AI-ready features, and Cloudinary media management.
+Production-grade Node.js + Express + MongoDB Job Portal backend with full authentication, subscriptions, payments (Stripe, PayPal, Bank), real-time chat via Socket.io, push/email notifications, cron jobs, Cloudinary media, Redis caching, BullMQ queues, and Swagger API docs.
 
 ---
 
@@ -8,65 +8,109 @@ Production-grade MERN Job Portal backend with full authentication, subscriptions
 
 ```
 src/
-├── config/           # DB, Redis, Cloudinary, Logger, Swagger
-├── constants/        # Enums & constants
-├── controllers/      # Route handlers
-│   ├── auth.controller.js
-│   ├── job.controller.js
-│   ├── company.controller.js
-│   ├── application.controller.js
-│   ├── payment.controller.js
-│   ├── message.controller.js
-│   ├── notification.controller.js
-│   ├── admin.controller.js
-│   └── upload.controller.js
-├── cron/             # Scheduled jobs
-├── middleware/       # Auth, error handler, validator
-├── models/           # MongoDB schemas (mirrors SQL structure)
-│   ├── User.model.js
-│   ├── Job.model.js
-│   ├── Company.model.js
-│   ├── Resume.model.js
-│   ├── Application.model.js
-│   ├── Payment.model.js
-│   ├── Message.model.js
-│   ├── Notification.model.js
-│   ├── RefreshToken.model.js
-│   └── Misc.model.js  (Category, JobType, City, Tag, etc.)
-├── queues/           # BullMQ background jobs
-├── routes/           # Express routers
-├── services/         # Business logic layer
-│   ├── auth.service.js
-│   ├── cloudinary.service.js
-│   ├── email.service.js
-│   └── notification.service.js
-├── sockets/          # Socket.io real-time
-├── utils/            # AppError, helpers
-├── validators/       # Joi schemas
-└── server.js
+├── config/
+│   ├── cloudinary.js         # Cloudinary v2 SDK setup
+│   ├── database.js           # MongoDB connection with reconnect logic
+│   ├── logger.js             # Winston logger with daily rotate files
+│   ├── redis.js              # Redis client + cache helper (get/set/del/delPattern/exists)
+│   └── swagger.js            # Swagger/OpenAPI 3.0 spec config
+├── constants/
+│   └── index.js              # Enums: USER_ROLES, JOB_STATUS, APPLICATION_STATUS, PAYMENT_*, NOTIFICATION_TYPES, etc.
+├── controllers/
+│   ├── admin.controller.js           # Dashboard, user mgmt, revenue reports, reports, system errors, activity logs, invoices
+│   ├── application.controller.js     # Apply, get my/job/single applications, update status, withdraw, rate, company overview
+│   ├── auth.controller.js            # Register, login, refresh, logout, verify email, forgot/reset/change password, sessions
+│   ├── company.controller.js         # CRUD companies, logo/gallery upload, verification, follow/unfollow, admin panel
+│   ├── job.controller.js             # CRUD jobs, shortlist, featured, moderate (admin), analytics
+│   ├── jobAlert.controller.js        # CRUD job alerts for jobseekers
+│   ├── message.controller.js         # Conversations, messages, send with attachments, delete
+│   ├── notification.controller.js    # Get, mark read, mark all read, delete notifications
+│   ├── payment.controller.js         # Stripe session/webhook, PayPal order/capture, bank transfer, free package, refund
+│   └── upload.controller.js          # Generic image/file/multiple upload + delete via Cloudinary
+├── cron/
+│   └── index.js              # 5 cron jobs: job expiry, package expiry + warnings, job alerts, log cleanup, session cleanup
+├── middleware/
+│   ├── auth.middleware.js     # protect, optionalAuth, restrictTo, employerOnly, jobseekerOnly, adminOnly, verifiedOnly, authLimiter
+│   ├── errorHandler.js        # Global error handler: CastError, duplicate key, validation, JWT errors
+│   └── validate.middleware.js # Joi schema validation middleware
+├── models/
+│   ├── Application.model.js  # Job applications with status history, interview details, resume snapshot
+│   ├── Company.model.js       # Company profile, gallery, verification docs, social links, slug
+│   ├── Job.model.js           # Jobs with full classification, salary, location, analytics, featured/gold
+│   ├── Message.model.js       # Conversations + Messages with attachments, read receipts, soft delete
+│   ├── Misc.model.js          # Category, JobType, CareerLevel, Education, Currency, Country, State, City, Department, CoverLetter, JobAlert, JobShortlist, ActivityLog, Tag, Follower, Report, SavedSearch, Folder, SystemError
+│   ├── Notification.model.js  # Notifications with type, channels (inApp/email/push/sms), refModel
+│   ├── Package.model.js       # Subscription packages with feature quotas, duration, discount, Stripe/PayPal plan
+│   ├── Payment.model.js       # UserPackage (quotas), Invoice (Stripe/PayPal/bank/free), TransactionLog, Subscription
+│   ├── RefreshToken.model.js  # Refresh tokens with device info, TTL index, revoke support
+│   ├── Resume.model.js        # Resume with education, experience, languages, files, ATS score, share token
+│   └── User.model.js          # Users with roles, status, avatar, job preferences, social links, notification settings, device history
+├── queues/
+│   └── index.js              # BullMQ: notification queue (email delivery), email queue (job alerts)
+├── routes/
+│   ├── admin.routes.js        # /admin/* — all admin-only routes
+│   ├── analytics.routes.js    # /analytics/employer, /analytics/jobseeker
+│   ├── application.routes.js  # /applications/*
+│   ├── auth.routes.js         # /auth/*
+│   ├── category.routes.js     # /categories, /job-types, /career-levels, /education, /countries, /states, /cities + admin CRUD
+│   ├── company.routes.js      # /companies/*
+│   ├── follower.routes.js     # /followers/following
+│   ├── interview.routes.js    # /interviews — upcoming interviews for employer/jobseeker
+│   ├── job.routes.js          # /jobs/*
+│   ├── jobAlert.routes.js     # /job-alerts/*
+│   ├── message.routes.js      # /messages/conversations/*
+│   ├── notification.routes.js # /notifications/*
+│   ├── package.routes.js      # /packages/* + admin CRUD
+│   ├── payment.routes.js      # /payments/* (Stripe webhook uses raw body)
+│   ├── report.routes.js       # /reports — submit report
+│   ├── resume.routes.js       # /resumes/* — full resume management
+│   ├── search.routes.js       # /search — global search (jobs/companies/resumes) + saved searches
+│   ├── upload.routes.js       # /uploads/*
+│   └── user.routes.js         # /users/profile, avatar, notification settings, account delete, resume upload
+├── services/
+│   ├── auth.service.js        # Token generation/rotation, sendTokenResponse, revokeToken, revokeAll
+│   ├── cloudinary.service.js  # Multer memory storage, uploadToCloudinary, deleteFromCloudinary, responsive URLs
+│   ├── email.service.js       # Nodemailer: welcome, password reset, application confirmation/status, job alert, payment confirmation
+│   └── notification.service.js# NotificationService: create (with socket emit + BullMQ queue), markRead, markAllRead, getUnreadCount
+├── sockets/
+│   └── index.js              # Socket.io: auth middleware, personal rooms, conversation rooms, typing indicators, online/offline
+├── utils/
+│   └── AppError.js           # AppError class, asyncHandler, sendSuccess, sendPaginated
+├── validators/
+│   └── auth.validator.js     # Joi schemas: register, login, forgotPassword, resetPassword, changePassword
+└── server.js                 # Express app: security middleware, CORS, rate limiting, routes, Socket.io, cron, queues
 ```
 
 ---
 
 ## ⚡ Quick Start
 
-### 1. Install dependencies
+### Prerequisites
+- Node.js >= 18
+- MongoDB >= 6
+- Redis >= 7
+- Cloudinary account
+- Stripe account (for payments)
+
+### 1. Clone & Install
 ```bash
+git clone <repo-url>
+cd job-portal-backend
 npm install
 ```
 
-### 2. Configure environment
+### 2. Configure Environment
 ```bash
 cp .env.example .env
-# Edit .env with your values
+# Edit .env with your actual credentials
 ```
 
-### 3. Start services (MongoDB + Redis)
+### 3. Start Services (MongoDB + Redis via Docker)
 ```bash
 docker-compose up -d mongo redis
 ```
 
-### 4. Run in development
+### 4. Run Development Server
 ```bash
 npm run dev
 ```
@@ -75,137 +119,315 @@ npm run dev
 ```bash
 docker-compose up -d
 ```
+
+### 6. Test Stripe Webhooks Locally
+```bash
 stripe login
 stripe listen --forward-to localhost:5000/api/v1/payments/stripe/webhook
----
-
-## 🔑 API Endpoints
-
-### Auth
-| Method | Route | Description |
-|--------|-------|-------------|
-| POST | `/api/v1/auth/register` | Register user |
-| POST | `/api/v1/auth/login` | Login |
-| POST | `/api/v1/auth/refresh-token` | Refresh JWT |
-| POST | `/api/v1/auth/logout` | Logout |
-| POST | `/api/v1/auth/logout-all` | Logout all devices |
-| GET  | `/api/v1/auth/verify-email/:token` | Verify email |
-| POST | `/api/v1/auth/forgot-password` | Forgot password |
-| PATCH| `/api/v1/auth/reset-password/:token` | Reset password |
-| PATCH| `/api/v1/auth/change-password` | Change password |
-| GET  | `/api/v1/auth/me` | Get current user |
-| GET  | `/api/v1/auth/sessions` | Active sessions |
-
-### Jobs
-| Method | Route | Description |
-|--------|-------|-------------|
-| GET | `/api/v1/jobs` | List all jobs (with filters) |
-| GET | `/api/v1/jobs/featured` | Featured jobs |
-| GET | `/api/v1/jobs/:id` | Get single job |
-| POST | `/api/v1/jobs` | Create job (employer) |
-| PATCH | `/api/v1/jobs/:id` | Update job |
-| DELETE | `/api/v1/jobs/:id` | Delete job (soft) |
-| POST | `/api/v1/jobs/:id/shortlist` | Shortlist toggle |
-| PATCH | `/api/v1/jobs/:id/moderate` | Admin moderate |
-
-### Applications
-| Method | Route | Description |
-|--------|-------|-------------|
-| POST | `/api/v1/applications` | Apply for job |
-| GET | `/api/v1/applications/my` | My applications |
-| GET | `/api/v1/applications/job/:jobId` | Job applications (employer) |
-| PATCH | `/api/v1/applications/:id/status` | Update status |
-| PATCH | `/api/v1/applications/:id/withdraw` | Withdraw |
-
-### Payments
-| Method | Route | Description |
-|--------|-------|-------------|
-| POST | `/api/v1/payments/stripe/create-session` | Create Stripe session |
-| POST | `/api/v1/payments/stripe/webhook` | Stripe webhook |
-| POST | `/api/v1/payments/paypal/create-order` | Create PayPal order |
-| POST | `/api/v1/payments/paypal/capture` | Capture PayPal payment |
-| POST | `/api/v1/payments/bank/submit-proof` | Submit bank proof |
-| GET | `/api/v1/payments/history` | Payment history |
-
-### Companies
-| Method | Route | Description |
-|--------|-------|-------------|
-| GET | `/api/v1/companies` | List companies |
-| GET | `/api/v1/companies/:id` | Company detail |
-| POST | `/api/v1/companies` | Create company |
-| POST | `/api/v1/companies/logo` | Upload logo |
-| POST | `/api/v1/companies/:id/follow` | Follow/unfollow |
-| POST | `/api/v1/companies/verify/submit` | Submit verification |
-
-### Messages
-| Method | Route | Description |
-|--------|-------|-------------|
-| GET | `/api/v1/messages/conversations` | List conversations |
-| POST | `/api/v1/messages/conversations` | Start conversation |
-| GET | `/api/v1/messages/conversations/:id` | Get messages |
-| POST | `/api/v1/messages/conversations/:id` | Send message |
-
-### Uploads
-| Method | Route | Description |
-|--------|-------|-------------|
-| POST | `/api/v1/uploads/image` | Upload image |
-| POST | `/api/v1/uploads/file` | Upload file |
-| POST | `/api/v1/uploads/multiple` | Upload multiple |
-| DELETE | `/api/v1/uploads/delete/:publicId` | Delete file |
+```
 
 ---
 
-## 🔒 Security Features
+## 📜 Available Scripts
 
-- ✅ JWT access + refresh token rotation
-- ✅ Refresh token blacklisting (Redis)
-- ✅ Rate limiting (global + auth-specific)
-- ✅ Helmet security headers
-- ✅ MongoDB sanitization
-- ✅ XSS protection
-- ✅ HPP (HTTP Parameter Pollution) protection
-- ✅ CORS whitelist
-- ✅ Input validation (Joi)
-- ✅ Password strength enforcement
-- ✅ Device/session tracking
-- ✅ IP logging
-- ✅ Soft delete (never hard delete critical data)
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start with nodemon (hot reload) |
+| `npm start` | Start in production mode |
+| `npm test` | Run Jest tests with coverage |
+| `npm run lint` | Run ESLint |
+| `npm run docker:build` | Build Docker image |
+| `npm run docker:run` | Start all services via Docker Compose |
 
 ---
 
-## 💳 Payment Gateways
+## 🔑 API Reference
 
-| Gateway | Features |
-|---------|----------|
-| **Stripe** | Checkout session, webhooks, auto package activation |
-| **PayPal** | Create order, capture, sandbox/live |
-| **Bank Transfer** | Proof upload (Cloudinary), admin approval |
+**Base URL:** `http://localhost:5000/api/v1`  
+**Swagger Docs:** `http://localhost:5000/api-docs`  
+**Health Check:** `GET http://localhost:5000/health`
 
 ---
 
-## 📡 Real-time Features (Socket.io)
+### 🔐 Auth — `/api/v1/auth`
 
-- New message notifications
-- Typing indicators
-- Online/offline status
-- Live notification delivery
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| POST | `/register` | ❌ | Register new user (jobseeker or employer) |
+| POST | `/login` | ❌ | Login — returns accessToken + refreshToken |
+| POST | `/refresh-token` | ❌ | Rotate refresh token, get new access token |
+| POST | `/logout` | ✅ | Revoke current session |
+| POST | `/logout-all` | ✅ | Revoke all active sessions |
+| GET | `/verify-email/:token` | ❌ | Verify email address |
+| POST | `/resend-verification` | ❌ | Resend email verification |
+| POST | `/forgot-password` | ❌ | Send password reset link |
+| PATCH | `/reset-password/:token` | ❌ | Reset password with token |
+| PATCH | `/change-password` | ✅ | Change password (requires current password) |
+| GET | `/me` | ✅ | Get current authenticated user |
+| GET | `/sessions` | ✅ | List all active sessions/devices |
+| DELETE | `/sessions/:sessionId` | ✅ | Revoke a specific session |
+
+> Auth uses **JWT Bearer tokens** (`Authorization: Bearer <token>`). Tokens are also set as signed `httpOnly` cookies (`accessToken`, `refreshToken`).
 
 ---
 
-## 🔁 Background Jobs (BullMQ + Redis)
+### 👤 User — `/api/v1/users`
 
-- Email notifications
-- Job alert emails (every 6 hours)
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| GET | `/profile` | ✅ | Get own profile |
+| PATCH | `/profile` | ✅ | Update profile (name, bio, skills, job preferences, social links, etc.) |
+| POST | `/avatar` | ✅ | Upload profile avatar (multipart/form-data, field: `avatar`) |
+| PATCH | `/notification-settings` | ✅ | Update notification preferences |
+| DELETE | `/account` | ✅ | Soft delete own account |
+| POST | `/resume` | ✅ | Upload quick resume file (multipart/form-data, field: `resume`) |
+
+---
+
+### 💼 Jobs — `/api/v1/jobs`
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| GET | `/` | Optional | List all approved jobs (filters: keyword, category, jobType, city, country, workplaceType, salaryMin/Max, experience, isUrgent, company, tags, sort) |
+| GET | `/featured` | ❌ | Get featured jobs |
+| GET | `/my-jobs` | ✅ Employer | Get own posted jobs |
+| GET | `/shortlisted` | ✅ | Get shortlisted jobs |
+| GET | `/:id` | Optional | Get single job by ID or slug |
+| GET | `/:id/analytics` | ✅ Employer | Views, application count, status breakdown |
+| POST | `/` | ✅ Employer | Create a job (requires active package) |
+| PATCH | `/:id` | ✅ | Update job (employer: own jobs only; admin: any) |
+| DELETE | `/:id` | ✅ | Soft delete job |
+| POST | `/:id/shortlist` | ✅ | Toggle shortlist a job |
+| PATCH | `/:id/moderate` | ✅ Admin | Approve / reject / pause a job |
+
+**Job Filters (Query Params):**
+```
+keyword, category, subcategory, jobType, city, country, workplaceType,
+isUrgent, company, experience, tags, salaryMin, salaryMax,
+sort (newest|oldest|salary_high|salary_low|relevance),
+page, limit
+```
+
+---
+
+### 📋 Applications — `/api/v1/applications`
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| POST | `/` | ✅ Jobseeker | Apply for a job (requires active package with remaining applies) |
+| GET | `/my` | ✅ Jobseeker | My applications (filter by status) |
+| GET | `/company-overview` | ✅ Employer | Stats + recent applications for all company jobs |
+| GET | `/job/:jobId` | ✅ Employer | All applications for a specific job (filter by status, rating) |
+| GET | `/:id` | ✅ | Single application detail |
+| PATCH | `/:id/status` | ✅ Employer | Update status: reviewed, shortlisted, interview_scheduled, interviewed, offered, hired, rejected |
+| PATCH | `/:id/withdraw` | ✅ Jobseeker | Withdraw application |
+| PATCH | `/:id/rate` | ✅ Employer | Rate a candidate (0–5) |
+
+**Application Status Flow:**
+```
+applied → reviewed → shortlisted → interview_scheduled → interviewed → offered → hired
+                                                                              ↘ rejected
+```
+
+---
+
+### 🏢 Companies — `/api/v1/companies`
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| GET | `/` | Optional | List all companies (filters: keyword, city, verified, sort) |
+| GET | `/my-company` | ✅ Employer | Get own company |
+| GET | `/:id` | Optional | Get company by ID or slug (includes recent jobs) |
+| POST | `/` | ✅ Employer | Create company profile |
+| PATCH | `/:id` | ✅ | Update company |
+| POST | `/logo` | ✅ Employer | Upload logo (multipart/form-data, field: `logo`) |
+| POST | `/gallery` | ✅ Employer | Upload gallery image (field: `image`) |
+| DELETE | `/gallery` | ✅ Employer | Delete gallery image (body: `publicId`) |
+| POST | `/verify/submit` | ✅ Employer | Submit verification documents (field: `documents`, max 5) |
+| POST | `/:id/follow` | ✅ | Follow / unfollow company |
+| PATCH | `/:id/verify` | ✅ Admin | Approve or reject company verification |
+| GET | `/admin/all` | ✅ Admin | List all companies with filters |
+
+---
+
+### 📄 Resumes — `/api/v1/resumes`
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| GET | `/` | ✅ Employer | Search public resumes |
+| GET | `/my` | ✅ Jobseeker | Get own resumes |
+| GET | `/share/:token` | ❌ | Get resume via share token |
+| GET | `/:id` | Optional | Single resume (respects visibility) |
+| POST | `/` | ✅ Jobseeker | Create resume (requires active package) |
+| PATCH | `/:id` | ✅ | Update resume (auto-calculates completion %) |
+| DELETE | `/:id` | ✅ | Soft delete resume |
+| POST | `/:id/upload` | ✅ | Upload resume file (field: `file`) |
+| DELETE | `/:id/files/:publicId` | ✅ | Delete a resume file |
+| PATCH | `/:id/visibility` | ✅ | Toggle visibility (public/private/restricted) + searchable |
+| POST | `/:id/share` | ✅ | Generate shareable link |
+| PATCH | `/:id/feature` | ✅ | Toggle featured status |
+
+---
+
+### 💬 Messages — `/api/v1/messages`
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| GET | `/conversations` | ✅ | List all conversations |
+| POST | `/conversations` | ✅ | Start or get existing conversation (body: `recipientId`, optional `jobId`) |
+| GET | `/conversations/:conversationId` | ✅ | Get paginated messages (marks unread as read) |
+| POST | `/conversations/:conversationId` | ✅ | Send message with optional attachments (field: `attachments`, max 5) |
+| DELETE | `/:messageId` | ✅ | Delete message (body: `deleteForEveryone: true/false`) |
+
+---
+
+### 🔔 Notifications — `/api/v1/notifications`
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| GET | `/` | ✅ | Get notifications (filter: `unread=true`) |
+| GET | `/unread-count` | ✅ | Get unread notification count |
+| PATCH | `/read-all` | ✅ | Mark all as read |
+| PATCH | `/:id/read` | ✅ | Mark single notification as read |
+| DELETE | `/:id` | ✅ | Delete notification |
+
+---
+
+### 💳 Payments — `/api/v1/payments`
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| POST | `/stripe/create-session` | ✅ | Create Stripe Checkout session (body: `packageId`) |
+| POST | `/stripe/webhook` | ❌ | Stripe webhook — auto-activates package on payment success |
+| POST | `/paypal/create-order` | ✅ | Create PayPal order (body: `packageId`) |
+| POST | `/paypal/capture` | ✅ | Capture PayPal payment (body: `orderId`) |
+| POST | `/bank/submit-proof` | ✅ | Submit bank transfer proof (multipart, field: `proof`, body: `packageId`) |
+| PATCH | `/bank/:invoiceId/approve` | ✅ Admin | Approve bank transfer + activate package |
+| POST | `/free/activate` | ✅ | Activate free package |
+| GET | `/history` | ✅ | Payment history (paginated) |
+| POST | `/:id/refund` | ✅ | Request refund for a paid invoice |
+
+---
+
+### 📦 Packages — `/api/v1/packages`
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| GET | `/` | ❌ | List all active packages (filter: `for=employer|jobseeker`) |
+| GET | `/my-package` | ✅ | Get user's currently active package with quotas |
+| GET | `/:id` | ❌ | Get single package |
+| POST | `/` | ✅ Admin | Create package |
+| PATCH | `/:id` | ✅ Admin | Update package |
+| DELETE | `/:id` | ✅ Admin | Deactivate package |
+
+---
+
+### 🔍 Search — `/api/v1/search`
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| GET | `/` | Optional | Global search (params: `q`, `type=jobs|companies|resumes`, `page`, `limit`) |
+| GET | `/saved` | ✅ | Get saved searches |
+| POST | `/saved` | ✅ | Save a search |
+| DELETE | `/saved/:id` | ✅ | Delete saved search |
+
+---
+
+### 📊 Analytics — `/api/v1/analytics`
+
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| GET | `/employer` | ✅ Employer | Total jobs, applications, status breakdown, top jobs by views |
+| GET | `/jobseeker` | ✅ | Total applications, status breakdown, profile views |
+
+---
+
+### 🛡️ Admin — `/api/v1/admin`
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/dashboard` | Stats: users, jobs, companies, applications, revenue, pending reports |
+| GET | `/users` | List all users (filters: role, status, search) |
+| PATCH | `/users/:id/status` | Update user status (active/suspended/banned/pending) |
+| DELETE | `/users/:id` | Soft delete user |
+| GET | `/jobs` | List all jobs including deleted |
+| GET | `/revenue` | Revenue report by month + by payment method |
+| GET | `/reports` | User-submitted reports |
+| PATCH | `/reports/:id` | Resolve a report |
+| GET | `/system-errors` | Unread system errors (auto-marks as viewed) |
+| GET | `/activity-logs` | Activity logs (filter by uid) |
+| GET | `/bank-transfers` | Pending bank transfer invoices |
+| GET | `/invoices` | All invoices (filter by paymentStatus, payMethod) |
+
+---
+
+### 📂 Other Routes
+
+| Prefix | Description |
+|--------|-------------|
+| `/api/v1/categories` | Categories, job types, career levels, education, currencies, countries, states, cities |
+| `/api/v1/job-alerts` | CRUD job alerts (GET, POST, PATCH, DELETE) |
+| `/api/v1/uploads` | Generic file upload (image / file / multiple) + delete |
+| `/api/v1/interviews` | Upcoming interview_scheduled applications for employer or jobseeker |
+| `/api/v1/followers` | GET `/following` — companies the user follows |
+| `/api/v1/reports` | POST — submit a report about a job/company/resume/user |
+
+---
+
+## 🔒 Authentication & Authorization
+
+Tokens are passed as:
+1. `Authorization: Bearer <accessToken>` header, **or**
+2. Signed `accessToken` cookie
+
+| Role | Permissions |
+|------|-------------|
+| `jobseeker` | Apply, manage resumes, view jobs, messages |
+| `employer` | Post jobs, view applications, manage company |
+| `admin` | All of the above + moderate content, manage users |
+| `superadmin` | Full access |
+
+---
+
+## 📡 Real-time (Socket.io)
+
+Connect to `ws://localhost:5000` with auth token:
+```js
+const socket = io('http://localhost:5000', {
+  auth: { token: '<accessToken>' }
+});
+```
+
+**Events to Listen:**
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `notification` | `Notification` object | New in-app notification |
+| `new_message` | `{ conversationId, message }` | New chat message |
+| `user_typing` | `{ userId, conversationId }` | Someone is typing |
+| `user_stopped_typing` | `{ userId, conversationId }` | Stopped typing |
+| `user_online` | `{ userId }` | User came online |
+| `user_offline` | `{ userId }` | User went offline |
+
+**Events to Emit:**
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `join_conversation` | `conversationId` | Join a chat room |
+| `leave_conversation` | `conversationId` | Leave a chat room |
+| `typing_start` | `{ conversationId }` | Start typing |
+| `typing_stop` | `{ conversationId }` | Stop typing |
+
+---
 
 ## ⏰ Cron Jobs
 
 | Job | Schedule | Description |
 |-----|----------|-------------|
-| Job Expiry | Daily midnight | Auto-expire old jobs |
-| Package Expiry | 1am daily | Deactivate expired packages + warnings |
-| Job Alerts | Every 6 hours | Send matching jobs to alert subscribers |
-| Log Cleanup | Weekly Sunday | Remove 90-day old activity logs |
-| Session Cleanup | 2am daily | Remove expired refresh tokens |
+| Job Expiry | Daily midnight | Auto-expire approved jobs past `expiresAt` |
+| Package Expiry | Daily 1am | Deactivate expired packages + send notification |
+| Package Warning | Daily 1am | Email warning 3 days before expiry |
+| Job Alerts | Every 6 hours | Send matching new jobs to alert subscribers |
+| Log Cleanup | Weekly Sunday 3am | Delete activity logs older than 90 days |
+| Session Cleanup | Daily 2am | Delete expired refresh tokens from DB |
 
 ---
 
@@ -213,52 +435,235 @@ stripe listen --forward-to localhost:5000/api/v1/payments/stripe/webhook
 
 ```
 jobportal/
-├── users/          # Profile avatars
-├── companies/      # Company logos
-├── resumes/        # Resume PDF files
-├── messages/       # Chat attachments
-├── verifications/  # Company verification docs
-└── gallery/        # Company gallery images
+├── users/          → Profile avatars
+├── companies/      → Company logos
+├── resumes/        → Resume PDF/DOCX files
+├── messages/       → Chat message attachments
+├── verifications/  → Company verification documents
+├── gallery/        → Company gallery images
+└── covers/         → Cover images
+```
+
+---
+
+## 💳 Payment Flows
+
+### Stripe
+1. Frontend calls `POST /payments/stripe/create-session` → gets `sessionUrl`
+2. Redirect user to `sessionUrl` (Stripe Checkout)
+3. On success, Stripe calls webhook → package auto-activates
+4. Frontend polls `GET /packages/my-package` or listens for `payment_success` notification
+
+### PayPal
+1. `POST /payments/paypal/create-order` → get `orderId`
+2. Show PayPal button using SDK with `orderId`
+3. On approval, call `POST /payments/paypal/capture` with `orderId`
+4. Package activates immediately
+
+### Bank Transfer
+1. User uploads proof via `POST /payments/bank/submit-proof`
+2. Admin reviews at `GET /admin/bank-transfers`
+3. Admin approves via `PATCH /payments/bank/:invoiceId/approve`
+4. Package activates + confirmation email sent
+
+---
+
+## 📦 Package Quotas (UserPackage fields)
+
+When a package is activated, these counters are populated and decremented on use:
+
+| Field | Used When |
+|-------|-----------|
+| `remainingJobs` | Employer creates a job |
+| `remainingJobApply` | Jobseeker applies for a job |
+| `remainingResumes` | Jobseeker creates a resume |
+| `remainingFeaturedJobs` | Employer features a job |
+| `remainingFeaturedResumes` | Resume is featured |
+| `remainingResumeSearch` | Employer searches resumes |
+| `remainingJobAlerts` | Jobseeker creates a job alert |
+
+---
+
+## 🔒 Security Features
+
+- JWT access tokens (15 min) + refresh token rotation (7 days)
+- Redis blacklist for revoked access tokens
+- Rate limiting: 100 req/15min global, 5 req/15min on auth routes
+- Slow-down after 50 requests (adds 500ms delay)
+- Helmet security headers
+- MongoDB sanitization (`express-mongo-sanitize`)
+- XSS protection (`xss-clean`)
+- HTTP Parameter Pollution prevention (`hpp`)
+- CORS whitelist via `CLIENT_URL` env variable
+- Joi input validation on all auth routes
+- Bcrypt password hashing (12 rounds)
+- Soft delete — critical data is never hard-deleted
+- Signed cookies (cookie-parser)
+- Device/session tracking with IP + User-Agent logging
+
+---
+
+## 🌍 Environment Variables
+
+```env
+# SERVER
+NODE_ENV=development
+PORT=5000
+CLIENT_URL=http://localhost:3000
+API_VERSION=v1
+
+# MONGODB
+MONGO_URI=mongodb://localhost:27017/jobportal
+MONGO_URI_PROD=mongodb+srv://<user>:<pass>@cluster.mongodb.net/jobportal
+
+# JWT
+JWT_SECRET=your_super_secret_jwt_key_min_32_chars
+JWT_EXPIRES_IN=15m
+
+# CLOUDINARY
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+
+# REDIS
+REDIS_URL=redis://localhost:6379
+REDIS_PASSWORD=
+
+# EMAIL (SMTP)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_app_password
+EMAIL_FROM=noreply@jobportal.com
+EMAIL_FROM_NAME=JobPortal
+
+# STRIPE
+STRIPE_SECRET_KEY=sk_test_your_key
+STRIPE_WEBHOOK_SECRET=whsec_your_secret
+
+# PAYPAL
+PAYPAL_CLIENT_ID=your_paypal_client_id
+PAYPAL_CLIENT_SECRET=your_paypal_client_secret
+PAYPAL_MODE=sandbox
+
+# SENTRY (production only)
+SENTRY_DSN=https://your_sentry_dsn
+
+# RATE LIMITING
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX=100
+AUTH_RATE_LIMIT_MAX=5
+
+# BCRYPT
+BCRYPT_ROUNDS=12
+
+# COOKIES
+COOKIE_SECRET=your_cookie_secret
+COOKIE_EXPIRES_DAYS=7
+
+# UPLOAD LIMITS (bytes)
+MAX_FILE_SIZE=10485760
+MAX_IMAGE_SIZE=5242880
+
+# CRON
+ENABLE_CRON=true
+```
+
+---
+
+## 🧰 Tech Stack
+
+| Technology | Purpose |
+|-----------|---------|
+| **Node.js + Express** | API server |
+| **MongoDB + Mongoose** | Primary database with soft delete |
+| **Redis** | Caching, token blacklist, BullMQ backend |
+| **BullMQ** | Background job queues (emails, notifications) |
+| **Socket.io** | Real-time chat, notifications, presence |
+| **Cloudinary** | Image & file storage (stream upload) |
+| **Stripe** | Card payments + webhook |
+| **PayPal** | PayPal checkout (sandbox + live) |
+| **Nodemailer** | Transactional emails via SMTP |
+| **Winston** | Structured logging with daily log rotation |
+| **Joi** | Request body validation |
+| **Swagger** | Auto-generated API documentation |
+| **node-cron** | Scheduled background tasks |
+| **Helmet / hpp / xss-clean** | Security hardening |
+| **express-rate-limit** | API rate limiting |
+| **JWT + bcryptjs** | Auth + password hashing |
+| **Docker** | Containerization |
+| **Sentry** | Error monitoring (production) |
+
+---
+
+## 🎨 Frontend Integration Guide
+
+### Headers to send with every request:
+```js
+headers: {
+  'Authorization': `Bearer ${accessToken}`,
+  'Content-Type': 'application/json'
+}
+```
+
+### Standard API Response format:
+```json
+// Success (single)
+{
+  "success": true,
+  "message": "...",
+  "user": { ... }
+}
+
+// Success (paginated)
+{
+  "success": true,
+  "message": "...",
+  "data": [...],
+  "pagination": {
+    "total": 100,
+    "page": 1,
+    "limit": 20,
+    "pages": 5,
+    "hasMore": true
+  }
+}
+
+// Error
+{
+  "success": false,
+  "message": "Error description"
+}
+```
+
+### Token refresh flow:
+```js
+// If 401 is received, call refresh endpoint
+POST /api/v1/auth/refresh-token
+Body: { "refreshToken": "<token>" }
+
+// Response
+{
+  "accessToken": "...",
+  "refreshToken": "...",
+  "user": { ... }
+}
+```
+
+### File upload example (multipart):
+```js
+const formData = new FormData();
+formData.append('avatar', file);
+
+fetch('/api/v1/users/avatar', {
+  method: 'POST',
+  headers: { 'Authorization': `Bearer ${token}` },
+  body: formData  // Do NOT set Content-Type manually
+});
 ```
 
 ---
 
 ## 📚 API Documentation
 
-Swagger UI available at: `http://localhost:5000/api-docs`
-
----
-
-## 🧪 Tech Stack
-
-| Technology | Purpose |
-|-----------|---------|
-| Node.js + Express | API server |
-| MongoDB + Mongoose | Database |
-| Redis | Caching + token blacklist |
-| BullMQ | Job queues |
-| Socket.io | Real-time |
-| Cloudinary | Media storage |
-| Stripe + PayPal | Payments |
-| Nodemailer | Emails |
-| Winston | Logging |
-| Joi | Validation |
-| Swagger | API docs |
-| Docker | Containerization |
-| Sentry | Error monitoring |
-
----
-
-## 🌍 Environment Variables
-
-See `.env.example` for complete configuration.
-
----
-
-## 👨‍💻 Development
-
-```bash
-npm run dev      # Start with nodemon
-npm test         # Run tests
-npm run lint     # ESLint
-```
+Interactive Swagger UI: `http://localhost:5000/api-docs`

@@ -74,13 +74,8 @@ export default function JSProfile() {
         website: data.socialLinks?.website || '',
       },
     }
-
-    console.log(payload)
-
     updateMutation.mutate(payload)
   }
-
-  // categoriesData and jobTypesData are used in the Job Preferences section, which is not included in this snippet but is part of the full Profile page.
   const { data: categoriesData } = useQuery({
     queryKey: ['categories'],
     queryFn: () => categoriesAPI.getCategories().then(r => r.data?.data?.categories || r.data?.categories || r.data?.data || []),
@@ -89,8 +84,6 @@ export default function JSProfile() {
     queryKey: ['jobTypes'],
     queryFn: () => categoriesAPI.getJobTypes().then(r => r.data?.data?.jobTypes || r.data?.jobTypes || r.data?.data || []),
   })
-
-  // Add this mutation:
   const prefMutation = useMutation({
     mutationFn: (payload) => api.patch('/users/profile', { jobPreferences: payload }),
     onSuccess: (res) => {

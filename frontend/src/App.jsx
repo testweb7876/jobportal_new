@@ -31,6 +31,7 @@ const RegisterPage     = lazy(() => import('@/pages/auth/RegisterPage'))
 const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'))
 const ResetPasswordPage  = lazy(() => import('@/pages/auth/ResetPasswordPage'))
 const VerifyEmailPage    = lazy(() => import('@/pages/auth/VerifyEmailPage'))
+const SessionsPage     = lazy(() => import('@/pages/auth/SessionsPage'))
 
 // ── Job Seeker Pages ─────────────────────────────────────────────────────────
 const JSDashboard      = lazy(() => import('@/pages/jobseeker/Dashboard'))
@@ -45,6 +46,8 @@ const JSShortlisted    = lazy(() => import('@/pages/jobseeker/Shortlisted'))
 const JSAlerts         = lazy(() => import('@/pages/jobseeker/JobAlerts'))
 const JSMessages       = lazy(() => import('@/pages/jobseeker/Messages'))
 const JSSettings       = lazy(() => import('@/pages/jobseeker/Settings'))
+const JSInterviews     = lazy(() => import('@/pages/jobseeker/Interviews'))
+const JSFollowing      = lazy(() => import('@/pages/jobseeker/Following'))
 
 // ── Employer Pages ───────────────────────────────────────────────────────────
 const EmpDashboard     = lazy(() => import('@/pages/employer/Dashboard'))
@@ -57,6 +60,8 @@ const EmpCompany       = lazy(() => import('@/pages/employer/Company'))
 const EmpMessages      = lazy(() => import('@/pages/employer/Messages'))
 const EmpPackages      = lazy(() => import('@/pages/employer/Packages'))
 const EmpSettings      = lazy(() => import('@/pages/employer/Settings'))
+const EmpJobAnalytics  = lazy(() => import('@/pages/employer/JobAnalytics'))
+const EmpInterviews    = lazy(() => import('@/pages/employer/Interviews'))
 
 // ── Admin Pages ───────────────────────────────────────────────────────────────
 const AdminDashboard   = lazy(() => import('@/pages/admin/Dashboard'))
@@ -67,6 +72,9 @@ const AdminPackages    = lazy(() => import('@/pages/admin/Packages'))
 const AdminPayments    = lazy(() => import('@/pages/admin/Payments'))
 const AdminReports     = lazy(() => import('@/pages/admin/Reports'))
 const AdminSettings    = lazy(() => import('@/pages/admin/Settings'))
+const AdminActivityLogs  = lazy(() => import('@/pages/admin/ActivityLogs'))
+const AdminBankTransfers = lazy(() => import('@/pages/admin/BankTransfers'))
+const AdminCategories    = lazy(() => import('@/pages/admin/Categories'))
 
 function App() {
   const { isAuthenticated, accessToken } = useAuthStore()
@@ -99,6 +107,7 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
         <Route path="/verify-email/:token"   element={<VerifyEmailPage />} />
+        <Route path="/sessions" element={<ProtectedRoute><SessionsPage /></ProtectedRoute>} />
 
         {/* ── Smart Dashboard Redirect ─────────────────────────────────── */}
         <Route path="/dashboard" element={
@@ -122,6 +131,8 @@ function App() {
           <Route path="alerts"       element={<JSAlerts />} />
           <Route path="messages"     element={<JSMessages />} />
           <Route path="settings"     element={<JSSettings />} />
+          <Route path="interviews" element={<JSInterviews />} />
+          <Route path="following"  element={<JSFollowing />} />
         </Route>
 
         {/* ── Employer Routes ─────────────────────────────────────────── */}
@@ -138,6 +149,8 @@ function App() {
           <Route path="messages"     element={<EmpMessages />} />
           <Route path="packages"     element={<EmpPackages />} />
           <Route path="settings"     element={<EmpSettings />} />
+          <Route path="jobs/:id/analytics" element={<EmpJobAnalytics />} />
+          <Route path="interviews"         element={<EmpInterviews />} />
         </Route>
 
         {/* ── Admin Routes ────────────────────────────────────────────── */}
@@ -151,6 +164,9 @@ function App() {
           <Route path="payments"   element={<AdminPayments />} />
           <Route path="reports"    element={<AdminReports />} />
           <Route path="settings"   element={<AdminSettings />} />
+          <Route path="activity-logs"   element={<AdminActivityLogs />} />
+          <Route path="bank-transfers"  element={<AdminBankTransfers />} />
+          <Route path="categories"      element={<AdminCategories />} />
         </Route>
 
         <Route path="*" element={<NotFound />} />
