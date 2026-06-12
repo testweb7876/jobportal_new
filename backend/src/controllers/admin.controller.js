@@ -4,7 +4,7 @@ const Company = require('../models/Company.model');
 const Resume = require('../models/Resume.model');
 const Application = require('../models/Application.model');
 const { Invoice, UserPackage } = require('../models/Payment.model');
-const { Report, SystemError, ActivityLog } = require('../models/Misc.model');
+const { Report, SystemError, ActivityLog, Setting  } = require('../models/Misc.model');
 const { AppError, asyncHandler, sendSuccess, sendPaginated } = require('../utils/AppError');
 const { cache } = require('../config/redis');
 
@@ -212,7 +212,7 @@ exports.getActivityLogs = asyncHandler(async (req, res) => {
 // ─── PENDING BANK TRANSFERS ───────────────────────────────────────────────────
 exports.getPendingBankTransfers = asyncHandler(async (req, res) => {
   const transfers = await Invoice.find({ payMethod: 'bank', paymentStatus: 'pending' })
-    .populate('uid', 'firstName lastName email')
+    .populate('uid', 'firstName lastName email avatar')  
     .sort({ createdAt: -1 }).lean();
 
   sendSuccess(res, { transfers }, 'Pending bank transfers');
@@ -245,3 +245,18 @@ exports.getInvoices = asyncHandler(async (req, res) => {
 
   sendPaginated(res, invoices, total, page, limit);
 });
+
+exports.getBankDetails = asyncHandler(async (req, res) => {
+  const setting = await Setting.findOne({ key: 'bank_details' })
+  sendSuccess(res, { bank: setting?.value || null }, 'Bank details')
+})
+
+exports.updateBankDetails = asyncHandler(async (req, res) => {
+  const { bankName, accountName, accountNumber, ifsc, branch, upiId } = req.body
+  const setting = await Setting.findOneAndUpdate(
+    { key: 'bank_details' },
+    { value: { bankName, accountName, accountNumber, ifsc, branch, upiId } },
+    { upsert: true, new: true }
+  )
+  sendSuccess(res, { bank: setting.value }, 'Bank details updated')
+})

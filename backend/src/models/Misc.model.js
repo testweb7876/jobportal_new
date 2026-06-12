@@ -14,6 +14,13 @@ const categorySchema = new mongoose.Schema({
 categorySchema.index({ parentId: 1 });
 categorySchema.index({ alias: 1 });
 
+const settingSchema = new mongoose.Schema({
+  key:   { type: String, required: true, unique: true },
+  value: { type: mongoose.Schema.Types.Mixed },
+}, { timestamps: true })
+
+const Setting = mongoose.model('Setting', settingSchema)
+
 // ─── JOB TYPE ────────────────────────────────────────────────────────────────
 const jobTypeSchema = new mongoose.Schema({
   title:     { type: String, required: true },
@@ -324,4 +331,5 @@ module.exports = {
   Folder:             mongoose.model('Folder', folderSchema),
   FolderResume:       mongoose.model('FolderResume', folderResumeSchema),
   SystemError:        mongoose.model('SystemError', systemErrorSchema),
+  Setting:             mongoose.model('Setting', settingSchema),
 };

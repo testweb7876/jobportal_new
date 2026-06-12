@@ -12,10 +12,11 @@ router.post('/stripe/create-session',    protect,               paymentControlle
 router.post('/paypal/create-order',      protect,               paymentController.createPaypalOrder);
 router.post('/paypal/capture',           protect,               paymentController.capturePaypalOrder);
 router.post('/bank/submit-proof',        protect, uploadFile.single('proof'), paymentController.submitBankTransfer);
+router.get( '/bank-transfers',           protect, adminOnly,    paymentController.getBankTransfers);
+router.patch('/bank/:invoiceId/status', protect, adminOnly, paymentController.updateBankTransferStatus)
 router.patch('/bank/:invoiceId/approve', protect, adminOnly,    paymentController.approveBankTransfer);
 router.post('/free/activate',            protect,               paymentController.activateFreePackage);
 router.get('/history',                   protect,               paymentController.getPaymentHistory);
 router.post('/:id/refund',               protect,               paymentController.requestRefund);
-
 
 module.exports = router;

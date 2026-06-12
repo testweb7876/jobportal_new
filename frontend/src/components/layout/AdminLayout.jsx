@@ -4,17 +4,21 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { clsx } from 'clsx'
 import useAuthStore from '@/store/authStore'
 import { Avatar } from '@/components/common/UI'
-import { LayoutDashboard, Users, Briefcase, Building2, CreditCard, Flag, Settings, LogOut, Menu, ChevronRight, Bell, ShieldCheck, Package } from 'lucide-react'
+import NotificationPanel from '@/components/common/NotificationPanel'
+import { LayoutDashboard, Users, Briefcase, Building2, CreditCard, Flag, Settings, LogOut, Menu, ChevronRight, Bell, ShieldCheck, Package, Activity, Landmark, Tag } from 'lucide-react'
 
 const adminNav = [
-  { icon: LayoutDashboard, label: 'Dashboard',  href: '/admin/dashboard' },
-  { icon: Users,           label: 'Users',       href: '/admin/users' },
-  { icon: Briefcase,       label: 'Jobs',        href: '/admin/jobs' },
-  { icon: Building2,       label: 'Companies',   href: '/admin/companies' },
-  { icon: Package,         label: 'Packages',    href: '/admin/packages' },
-  { icon: CreditCard,      label: 'Payments',    href: '/admin/payments' },
-  { icon: Flag,            label: 'Reports',     href: '/admin/reports' },
-  { icon: Settings,        label: 'Settings',    href: '/admin/settings' },
+  { icon: LayoutDashboard, label: 'Dashboard',      href: '/admin/dashboard' },
+  { icon: Users,           label: 'Users',           href: '/admin/users' },
+  { icon: Briefcase,       label: 'Jobs',            href: '/admin/jobs' },
+  { icon: Building2,       label: 'Companies',       href: '/admin/companies' },
+  { icon: Package,         label: 'Packages',        href: '/admin/packages' },
+  { icon: CreditCard,      label: 'Payments',        href: '/admin/payments' },
+  { icon: Landmark,        label: 'Bank Transfers',  href: '/admin/bank-transfers' },
+  { icon: Tag,             label: 'Categories',      href: '/admin/categories' },
+  { icon: Activity,        label: 'Activity Logs',   href: '/admin/activity-logs' },
+  { icon: Flag,            label: 'Reports',         href: '/admin/reports' },
+  { icon: Settings,        label: 'Settings',        href: '/admin/settings' },
 ]
 
 export default function AdminLayout() {
@@ -107,10 +111,7 @@ export default function AdminLayout() {
               {location.pathname.split('/').pop().replace(/-/g, ' ')}
             </p>
           </div>
-          <button className="relative w-9 h-9 rounded-xl flex items-center justify-center hover:bg-gray-100 dark:hover:bg-dark-700 transition-colors">
-            <Bell size={17} className="text-gray-500" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-          </button>
+          <NotificationPanel isAuthenticated={true} />
           <Avatar src={user?.avatar?.secureUrl} name={`${user?.firstName}`} size="sm" />
         </header>
 

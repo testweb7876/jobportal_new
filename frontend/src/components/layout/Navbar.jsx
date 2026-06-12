@@ -4,9 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Menu, X, Bell, Sun, Moon, ChevronDown, Briefcase, Search, User, LogOut, Settings, LayoutDashboard } from 'lucide-react'
 import useAuthStore from '@/store/authStore'
 import { Avatar } from '@/components/common/UI'
-import { notificationAPI } from '@/services/api'
+// import { notificationAPI } from '@/services/api'
 import { useQuery } from '@tanstack/react-query'
 import { clsx } from 'clsx'
+import NotificationPanel from '@/components/common/NotificationPanel'
 
 const navLinks = [
   { label: 'Find Jobs', href: '/jobs' },
@@ -17,7 +18,7 @@ const navLinks = [
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
-  const [notifOpen, setNotifOpen] = useState(false)
+  // const [notifOpen, setNotifOpen] = useState(false)
   const [dark, setDark] = useState(() => localStorage.getItem('theme') === 'dark')
   const [scrolled, setScrolled] = useState(false)
 
@@ -47,12 +48,12 @@ export default function Navbar() {
   }, [])
 
   // Unread notification count
-  const { data: unreadData } = useQuery({
-    queryKey: ['notif-count'],
-    queryFn: () => notificationAPI.unreadCount().then(r => r.data?.count || 0),
-    enabled: isAuthenticated,
-    refetchInterval: 30000,
-  })
+  // const { data: unreadData } = useQuery({
+  //   queryKey: ['notif-count'],
+  //   queryFn: () => notificationAPI.unreadCount().then(r => r.data?.count || 0),
+  //   enabled: isAuthenticated,
+  //   refetchInterval: 30000,
+  // })
 
   const handleLogout = async () => {
     await logout()
@@ -111,15 +112,7 @@ export default function Navbar() {
             {isAuthenticated ? (
               <>
                 {/* Notifications */}
-                <div className="relative">
-                  <button onClick={() => setNotifOpen(!notifOpen)}
-                    className="relative w-9 h-9 rounded-xl flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-700 transition-colors">
-                    <Bell size={17} />
-                    {unreadData > 0 && (
-                      <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-dark-900" />
-                    )}
-                  </button>
-                </div>
+                <NotificationPanel isAuthenticated={isAuthenticated} />
 
                 {/* User Menu */}
                 <div className="relative" ref={userMenuRef}>

@@ -98,38 +98,19 @@ exports.createStripeSession = asyncHandler(async (req, res, next) => {
 // ─── STRIPE: WEBHOOK ──────────────────────────────────────────────────────────
 exports.stripeWebhook = async (req, res) => {
 
-  console.log('======================');
-  console.log('STRIPE WEBHOOK HIT');
-  console.log('Headers:', req.headers['stripe-signature']);
-  console.log('======================');
-
   const sig = req.headers['stripe-signature'];
   let event;
 
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-
-    console.log('EVENT TYPE:', event.type);
-
   } catch (err) {
     logger.error('Stripe webhook signature failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
-
   try {
     if (event.type === 'checkout.session.completed') {
-
       const session = event.data.object;
-
-      console.log('PAYMENT SUCCESS');
-      console.log('Session ID:', session.id);
-      console.log('Metadata:', session.metadata);
-
       const { userId, packageId } = session.metadata;
-
-      console.log('User ID:', userId);
-      console.log('Package ID:', packageId);
-
       const invoice = await Invoice.findOneAndUpdate(
         { transactionId: session.id },
         {
@@ -277,8 +258,8 @@ exports.submitBankTransfer = asyncHandler(async (req, res, next) => {
     payMethod: 'bank',
     paymentStatus: 'pending',
     paymentProof: result.secureUrl,
-    payer_email: req.user.email,
-    payer_name: `${req.user.firstName} ${req.user.lastName}`,
+    payerEmail: req.user.email,
+    payerName: `${req.user.firstName} ${req.user.lastName}`,
   });
 
   sendSuccess(res, { invoice }, 'Bank transfer proof submitted. Admin will verify within 24-48 hours.', 201);
@@ -351,3 +332,35 @@ exports.requestRefund = asyncHandler(async (req, res, next) => {
 
   sendSuccess(res, {}, 'Refund request submitted. Admin will process within 5-7 business days.');
 });
+
+// ─── ADMIN: GET BANK TRANSFERS ─────────────────────────────
+exports.getBankTransfers = asyncHandler(async (req, res) => {
+  const invoices = await Invoice.find({
+    payMethod: 'bank',
+  })
+  .populate('uid', 'firstName lastName email avatar')
+  .sort({ createdAt: -1 });
+
+  sendSuccess(res, { invoices }, 'Bank transfers');
+});
+
+// ─── ADMIN: UPDATE BANK TRANSFER STATUS ──────────────────────────────────────
+exports.updateBankTransferStatus = asyncHandler(async (req, res, next) => {
+  const { status } = req.body
+  const invoice = await Invoice.findById(req.params.invoiceId)
+  if (!invoice) return next(new AppError('Invoice not found.', 404))
+  if (invoice.payMethod !== 'bank') return next(new AppError('Not a bank transfer.', 400))
+
+  const validStatuses = ['pending', 'paid', 'rejected', 'failed']
+  if (!validStatuses.includes(status)) return next(new AppError('Invalid status.', 400))
+
+  // Agar approve kar rahe ho toh package bhi activate karo
+  if (status === 'paid' && invoice.paymentStatus !== 'paid') {
+    await Invoice.findByIdAndUpdate(invoice._id, { paymentStatus: 'paid', paidAt: new Date() })
+    await activateUserPackage(invoice.uid, invoice.recordId, invoice._id)
+  } else {
+    await Invoice.findByIdAndUpdate(invoice._id, { paymentStatus: status })
+  }
+
+  sendSuccess(res, {}, `Status updated to ${status}`)
+})

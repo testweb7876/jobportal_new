@@ -7,21 +7,15 @@ const { uploadFile } = require('../services/cloudinary.service');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../services/cloudinary.service');
 const { cache } = require('../config/redis');
 
-
-
-// ─── GET ALL RESUMES (Employer Search) ───────────────────────────────────────
 router.get('/', protect, employerOnly, asyncHandler(async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = Math.min(parseInt(req.query.limit) || 20, 50);
   const skip = (page - 1) * limit;
-
   const filter = { published: true, searchable: true, isDeleted: false };
-
   if (req.query.keyword) filter.$text = { $search: req.query.keyword };
   if (req.query.category) filter.jobCategory = req.query.category;
   if (req.query.jobType) filter.jobType = req.query.jobType;
   if (req.query.visibility) filter.visibility = req.query.visibility;
-
   const [resumes, total] = await Promise.all([
     Resume.find(filter)
       .select('-aiResumeSearchText -aiResumeSearchDescription')
@@ -32,7 +26,6 @@ router.get('/', protect, employerOnly, asyncHandler(async (req, res) => {
       .skip(skip).limit(limit).lean(),
     Resume.countDocuments(filter),
   ]);
-
   sendPaginated(res, resumes, total, page, limit);
 }));
 
