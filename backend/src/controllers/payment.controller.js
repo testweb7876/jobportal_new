@@ -283,7 +283,6 @@ exports.submitBankTransfer = asyncHandler(async (req, res, next) => {
     payerName: `${req.user.firstName} ${req.user.lastName}`,
   });
 
-  // Email — confirm we received the proof, so the user isn't left wondering
   try {
     await emailService.sendBankProofReceived(req.user, invoice);
   } catch { /* silent */ }
@@ -385,12 +384,10 @@ exports.updateBankTransferStatus = asyncHandler(async (req, res, next) => {
   const validStatuses = ['pending', 'paid', 'rejected', 'failed']
   if (!validStatuses.includes(status)) return next(new AppError('Invalid status.', 400))
 
-  // Agar approve kar rahe ho toh package bhi activate karo
   if (status === 'paid' && invoice.paymentStatus !== 'paid') {
     await Invoice.findByIdAndUpdate(invoice._id, { paymentStatus: 'paid', paidAt: new Date() })
     await activateUserPackage(invoice.uid._id, invoice.recordId, invoice._id)
 
-    // This path was missing the confirmation email that approveBankTransfer already sends — now consistent
     try {
       await emailService.sendPaymentConfirmation(invoice.uid, invoice)
     } catch { /* silent */ }
