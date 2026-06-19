@@ -75,6 +75,10 @@ const AdminSettings    = lazy(() => import('@/pages/admin/Settings'))
 const AdminActivityLogs  = lazy(() => import('@/pages/admin/ActivityLogs'))
 const AdminBankTransfers = lazy(() => import('@/pages/admin/BankTransfers'))
 const AdminCategories    = lazy(() => import('@/pages/admin/Categories'))
+const Revenue = lazy(() => import('@/pages/admin/Revenue'))
+const Invoices = lazy(() => import('@/pages/admin/Invoices'))
+
+
 
 function App() {
   const { isAuthenticated, accessToken } = useAuthStore()
@@ -167,6 +171,8 @@ function App() {
           <Route path="activity-logs"   element={<AdminActivityLogs />} />
           <Route path="bank-transfers"  element={<AdminBankTransfers />} />
           <Route path="categories"      element={<AdminCategories />} />
+          <Route path="revenue" element={<Revenue />} />
+          <Route path="invoices" element={<Invoices />} />
         </Route>
 
         <Route path="*" element={<NotFound />} />
