@@ -5,6 +5,7 @@ import { adminAPI, settingsAPI } from '@/services/api'
 import { AlertCircle, Activity, Landmark } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import toast from 'react-hot-toast'
+import AccountSecuritySection from '@/components/common/AccountSecuritySection'
 
 export default function AdminSettings() {
   const qc = useQueryClient()
@@ -26,7 +27,7 @@ export default function AdminSettings() {
     mutationFn: (data) => settingsAPI.updateBankDetails(data),
     onSuccess: () => {
       toast.success('Bank details saved!')
-      qc.invalidateQueries(['bank-details'])
+      qc.invalidateQueries({ queryKey: ['bank-details'] })
     },
     onError: () => toast.error('Failed to save'),
   })
@@ -42,7 +43,7 @@ export default function AdminSettings() {
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="page-title mb-1">Admin Settings</h1>
-        <p className="text-gray-500 dark:text-gray-400">System configuration and error logs</p>
+        <p className="text-gray-500 dark:text-gray-400">System configuration, error logs, and your account security</p>
       </div>
 
       {/* ── Bank Account Details ─────────────────────────────────────────── */}
@@ -118,6 +119,9 @@ export default function AdminSettings() {
           </div>
         )}
       </div>
+
+      {/* ── Account Security (password, sessions, logout-all) ─────────────── */}
+      <AccountSecuritySection />
     </div>
   )
 }

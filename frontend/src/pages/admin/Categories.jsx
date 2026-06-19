@@ -37,33 +37,52 @@ export default function AdminCategories() {
   const createMutation = useMutation({
     mutationFn: (title) =>
       activeTab === 'categories'
-        ? adminAPI.createCategory({ catTitle: title })
+        ? adminAPI.createCategory({
+            catTitle: title,
+            alias: title
+              .toLowerCase()
+              .trim()
+              .replace(/\s+/g, '-')
+              .replace(/[^a-z0-9-]/g, '')
+          })
         : adminAPI.createJobType({ title }),
+
     onSuccess: () => {
       toast.success('Created!')
       close()
-      qc.invalidateQueries(['admin-categories'])
-      qc.invalidateQueries(['admin-job-types'])
-      qc.invalidateQueries(['categories'])
-      qc.invalidateQueries(['job-types'])
+      qc.invalidateQueries({ queryKey: ['admin-categories'] })
+      qc.invalidateQueries({ queryKey: ['admin-job-types'] })
     },
-    onError: (err) => toast.error(err?.response?.data?.message || 'Failed'),
+
+    onError: (err) =>
+      toast.error(err?.response?.data?.message || 'Failed'),
   })
 
   const updateMutation = useMutation({
     mutationFn: ({ id, title }) =>
       activeTab === 'categories'
-        ? adminAPI.updateCategory(id, { catTitle: title })
+        ? adminAPI.updateCategory(id, {
+            catTitle: title,
+            alias: title
+              .toLowerCase()
+              .trim()
+              .replace(/\s+/g, '-')
+              .replace(/[^a-z0-9-]/g, '')
+          })
         : adminAPI.updateJobType(id, { title }),
+
     onSuccess: () => {
       toast.success('Updated!')
       close()
-      qc.invalidateQueries(['admin-categories'])
-      qc.invalidateQueries(['admin-job-types'])
-      qc.invalidateQueries(['categories'])
-      qc.invalidateQueries(['job-types'])
+
+      qc.invalidateQueries({ queryKey: ['admin-categories'] })
+      qc.invalidateQueries({ queryKey: ['admin-job-types'] })
+      qc.invalidateQueries({ queryKey: ['categories'] })
+      qc.invalidateQueries({ queryKey: ['job-types'] })
     },
-    onError: (err) => toast.error(err?.response?.data?.message || 'Update failed'),
+
+    onError: (err) =>
+      toast.error(err?.response?.data?.message || 'Update failed'),
   })
 
   const deleteMutation = useMutation({
