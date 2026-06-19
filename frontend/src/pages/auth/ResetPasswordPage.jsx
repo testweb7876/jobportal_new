@@ -32,7 +32,14 @@ export default function ResetPasswordPage() {
             <label className="label">New Password</label>
             <div className="relative">
               <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input {...register('password', { required: 'Password required', minLength: { value: 8, message: 'Min 8 chars' } })}
+              <input {...register('password', {
+                required: 'Password required',
+                minLength: { value: 8, message: 'Min 8 characters' },
+                pattern: {
+                  value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])/,
+                  message: 'Need uppercase, lowercase, number & special char'
+                }
+              })}
                 type={showPass ? 'text' : 'password'} className={`input pl-9 pr-10 ${errors.password ? 'input-error' : ''}`} />
               <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400">
                 {showPass ? <EyeOff size={15}/> : <Eye size={15}/>}

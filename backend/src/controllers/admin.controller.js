@@ -7,6 +7,7 @@ const { Invoice, UserPackage } = require('../models/Payment.model');
 const { Report, SystemError, ActivityLog, Setting  } = require('../models/Misc.model');
 const { AppError, asyncHandler, sendSuccess, sendPaginated } = require('../utils/AppError');
 const { cache } = require('../config/redis');
+const emailService = require('../services/email.service');
 
 // ─── DASHBOARD STATS ─────────────────────────────────────────────────────────
 exports.getDashboard = asyncHandler(async (req, res) => {
@@ -82,7 +83,7 @@ exports.getUsers = asyncHandler(async (req, res) => {
 });
 
 exports.updateUserStatus = asyncHandler(async (req, res, next) => {
-  const { status } = req.body;
+  const { status, reason } = req.body;
   if (!['active', 'suspended', 'banned', 'pending'].includes(status)) {
     return next(new AppError('Invalid status.', 400));
   }
@@ -98,6 +99,11 @@ exports.updateUserStatus = asyncHandler(async (req, res, next) => {
     referenceId: req.params.id,
     ipAddress: req.ip,
   });
+
+  // Email — user must be told their account was suspended/banned/reactivated
+  try {
+    await emailService.sendAccountStatusUpdate(user, status, reason);
+  } catch { /* silent */ }
 
   sendSuccess(res, { user }, `User status updated to ${status}`);
 });

@@ -123,12 +123,29 @@ export default function JSMessages() {
 
 function MessageInput({ conversationId }) {
   const [msg, setMsg] = useState('')
+  const qc = useQueryClient()
+
   const send = async () => {
     if (!msg.trim()) return
+
+    const tempMsg = msg
+    setMsg('')
+
     try {
-      await messageAPI.send(conversationId, { message: msg })
-      setMsg('')
-    } catch { }
+      await messageAPI.send(conversationId, { message: tempMsg })
+
+      await qc.invalidateQueries({
+        queryKey: ['messages']
+      })
+
+      await qc.invalidateQueries({
+        queryKey: ['conversations']
+      })
+    } catch (error) {
+      console.log(error)
+      toast.error('Message failed')
+      setMsg(tempMsg)
+    }
   }
   return (
     <div className="p-4 border-t border-gray-100 dark:border-dark-700 flex gap-3">

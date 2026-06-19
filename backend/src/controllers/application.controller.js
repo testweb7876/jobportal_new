@@ -65,7 +65,8 @@ exports.applyJob = asyncHandler(async (req, res, next) => {
       message: `Someone applied for your job "${job.title}"`,
       refModel: 'Application',
       refId: application._id,
-      channels: { inApp: true, email: true },
+      // email handled by the direct send below — keep this in-app only to avoid sending two emails
+      channels: { inApp: true },
     });
     try {
       await emailService.sendNewApplicationAlert(job.uid, application, job.title);
@@ -81,6 +82,11 @@ exports.applyJob = asyncHandler(async (req, res, next) => {
     refModel: 'Application',
     refId: application._id,
   });
+
+  // Email — confirm the application was received (template existed but was never called before)
+  try {
+    await emailService.sendApplicationConfirmation(req.user, job);
+  } catch { /* silent */ }
 
   await ActivityLog.create({
     uid: req.user._id,
@@ -225,7 +231,8 @@ exports.updateApplicationStatus = asyncHandler(async (req, res, next) => {
       message: note || `Your application status has been updated to ${status}.`,
       refModel: 'Application',
       refId: application._id,
-      channels: { inApp: true, email: true },
+      // email handled by the direct send below — keep this in-app only to avoid sending two emails
+      channels: { inApp: true },
     });
 
     try {

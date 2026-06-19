@@ -169,6 +169,153 @@ class EmailService {
       `,
     });
   }
+
+  // ── NEW TEMPLATES ──────────────────────────────────────────────────────────
+
+  async sendJobModerationUpdate(employer, job, status, note = '') {
+    const statusMap = {
+      approved: { color: '#059669', icon: '✅', label: 'Approved' },
+      rejected: { color: '#dc2626', icon: '❌', label: 'Rejected' },
+      paused: { color: '#d97706', icon: '⏸️', label: 'Paused' },
+    };
+    const s = statusMap[status] || { color: '#2563eb', icon: '📋', label: status };
+
+    return this.send({
+      to: employer.email,
+      subject: `Job ${s.label}: ${job.title}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: ${s.color};">${s.icon} Job ${s.label}</h2>
+          <p>Hi ${employer.firstName},</p>
+          <p>Your job posting <strong>${job.title}</strong> has been <strong style="color:${s.color}">${s.label.toLowerCase()}</strong> by our team.</p>
+          ${note ? `<p><strong>Note:</strong> ${note}</p>` : ''}
+          ${status === 'approved' ? `<p>Your job is now live and visible to candidates.</p>` : ''}
+        </div>
+      `,
+    });
+  }
+
+  async sendCompanyVerificationUpdate(employer, company, status, note = '') {
+    const approved = status === 'approved';
+    return this.send({
+      to: employer.email,
+      subject: `Company Verification ${approved ? 'Approved' : 'Rejected'} - ${company.name}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: ${approved ? '#059669' : '#dc2626'};">${approved ? '✅ Verification Approved' : '❌ Verification Rejected'}</h2>
+          <p>Hi ${employer.firstName},</p>
+          <p>The verification request for <strong>${company.name}</strong> has been <strong>${approved ? 'approved' : 'rejected'}</strong>.</p>
+          ${note ? `<p><strong>Note from admin:</strong> ${note}</p>` : ''}
+          ${approved ? `<p>Your company now displays a verified badge.</p>` : `<p>Please review the note above and resubmit your documents if needed.</p>`}
+        </div>
+      `,
+    });
+  }
+
+  async sendAccountStatusUpdate(user, status, reason = '') {
+    const statusMap = {
+      suspended: { color: '#d97706', icon: '⚠️', label: 'Suspended' },
+      banned: { color: '#dc2626', icon: '🚫', label: 'Banned' },
+      active: { color: '#059669', icon: '✅', label: 'Reactivated' },
+      pending: { color: '#2563eb', icon: 'ℹ️', label: 'Pending' },
+    };
+    const s = statusMap[status] || { color: '#2563eb', icon: '📋', label: status };
+
+    return this.send({
+      to: user.email,
+      subject: `Account Status Update - ${s.label}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: ${s.color};">${s.icon} Account ${s.label}</h2>
+          <p>Hi ${user.firstName},</p>
+          <p>Your account status has been changed to: <strong style="color:${s.color}">${s.label}</strong></p>
+          ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
+          ${['suspended', 'banned'].includes(status) ? `<p>If you believe this is a mistake, please contact support.</p>` : ''}
+        </div>
+      `,
+    });
+  }
+
+  async sendPasswordChangedAlert(user) {
+    return this.send({
+      to: user.email,
+      subject: 'Your Password Was Changed - JobPortal',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2563eb;">🔒 Password Changed</h2>
+          <p>Hi ${user.firstName},</p>
+          <p>This is a confirmation that your account password was just changed.</p>
+          <p style="color:#666;">If you did not make this change, please contact support immediately and secure your account.</p>
+        </div>
+      `,
+    });
+  }
+
+  async sendPaymentFailed(user, invoice) {
+    return this.send({
+      to: user.email,
+      subject: 'Payment Failed - JobPortal',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #dc2626;">❌ Payment Failed</h2>
+          <p>Hi ${user.firstName},</p>
+          <p>We were unable to process your payment of <strong>${invoice.amount} ${invoice.currency || ''}</strong>.</p>
+          <p>Please try again or use a different payment method.</p>
+        </div>
+      `,
+    });
+  }
+
+  async sendRefundStatusUpdate(user, invoice, status) {
+    const statusMap = {
+      requested: { color: '#2563eb', icon: '📨', label: 'Refund Request Received' },
+      processed: { color: '#059669', icon: '✅', label: 'Refund Processed' },
+      rejected: { color: '#dc2626', icon: '❌', label: 'Refund Rejected' },
+    };
+    const s = statusMap[status] || { color: '#2563eb', icon: '📋', label: status };
+
+    return this.send({
+      to: user.email,
+      subject: `${s.label} - Invoice #${invoice._id}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: ${s.color};">${s.icon} ${s.label}</h2>
+          <p>Hi ${user.firstName},</p>
+          <p>Your refund request for invoice <strong>#${invoice._id}</strong> (amount: ${invoice.amount} ${invoice.currency || ''}) is now: <strong style="color:${s.color}">${s.label}</strong></p>
+          ${status === 'requested' ? `<p>Our team will review it within 5-7 business days.</p>` : ''}
+        </div>
+      `,
+    });
+  }
+
+  async sendNotificationEmail(user, notification) {
+    return this.send({
+      to: user.email,
+      subject: notification.title || 'New Notification - JobPortal',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2563eb;">${notification.title || 'New Notification'}</h2>
+          <p>Hi ${user.firstName},</p>
+          <p>${notification.message || ''}</p>
+        </div>
+      `,
+    });
+  }
+
+  async sendBankProofReceived(user, invoice) {
+    return this.send({
+      to: user.email,
+      subject: 'Bank Transfer Proof Received - JobPortal',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2563eb;">📥 Payment Proof Received</h2>
+          <p>Hi ${user.firstName},</p>
+          <p>We've received your bank transfer proof for invoice <strong>#${invoice._id}</strong> (amount: ${invoice.amount}).</p>
+          <p>Our team will verify it within 24-48 hours and activate your package.</p>
+        </div>
+      `,
+    });
+  }
 }
 
 module.exports = new EmailService();
