@@ -263,11 +263,12 @@ function JobCard({ job, shortlisted, onShortlist }) {
       </div>
 
       {/* Salary */}
-      {!job.hideSalaryRange && job.salaryMin && (
-        <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 mb-2">
-          ${job.salaryMin?.toLocaleString()} – ${job.salaryMax?.toLocaleString()} / yr
-        </p>
-      )}
+      <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 mb-2">
+        {job.currency || '$'}&nbsp;{job.salaryMin?.toLocaleString()}
+        {' – '}
+        {job.currency || '$'}&nbsp;{job.salaryMax?.toLocaleString()}
+        {' / yr'}
+      </p>
 
       {/* Footer */}
       <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-dark-700">

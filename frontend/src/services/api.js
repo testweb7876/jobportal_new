@@ -226,6 +226,8 @@ export const adminAPI = {
   createJobType:     (data)     => api.post('/categories/job-types', data),
   updateJobType:     (id, data) => api.patch(`/categories/job-types/${id}`, data),
   deleteJobType:     (id)       => api.delete(`/categories/job-types/${id}`),
+  revenue: (params) => api.get('/admin/revenue', { params }),
+  getInvoices: (params) => api.get('/admin/invoices', { params }),
 }
 
 export const searchAPI = {

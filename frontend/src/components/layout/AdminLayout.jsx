@@ -5,7 +5,7 @@ import { clsx } from 'clsx'
 import useAuthStore from '@/store/authStore'
 import { Avatar } from '@/components/common/UI'
 import NotificationPanel from '@/components/common/NotificationPanel'
-import { LayoutDashboard, Users, Briefcase, Building2, CreditCard, Flag, Settings, LogOut, Menu, ChevronRight, Bell, ShieldCheck, Package, Activity, Landmark, Tag } from 'lucide-react'
+import { LayoutDashboard, BarChart3, Receipt, Users, Briefcase, Building2, CreditCard, Flag, Settings, LogOut, Menu, ChevronRight, Bell, ShieldCheck, Package, Activity, Landmark, Tag } from 'lucide-react'
 
 const adminNav = [
   { icon: LayoutDashboard, label: 'Dashboard',      href: '/admin/dashboard' },
@@ -17,6 +17,8 @@ const adminNav = [
   { icon: Landmark,        label: 'Bank Transfers',  href: '/admin/bank-transfers' },
   { icon: Tag,             label: 'Categories',      href: '/admin/categories' },
   { icon: Activity,        label: 'Activity Logs',   href: '/admin/activity-logs' },
+  { icon: BarChart3,       label: 'Revenue Dashboard', href: '/admin/revenue'},
+  { icon: Receipt,         label: 'Invoices',         href: '/admin/invoices'},
   { icon: Flag,            label: 'Reports',         href: '/admin/reports' },
   { icon: Settings,        label: 'Settings',        href: '/admin/settings' },
 ]

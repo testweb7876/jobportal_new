@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { MapPin, Briefcase, Clock, DollarSign, Users, Building2, Bookmark, BookmarkCheck, Share2, ArrowLeft, CheckCircle, AlertCircle, Globe, MessageSquare  } from 'lucide-react'
+import { MapPin, Briefcase, Clock, DollarSign, Wallet, Users, Building2, Bookmark, BookmarkCheck, Share2, ArrowLeft, CheckCircle, AlertCircle, Globe, MessageSquare  } from 'lucide-react'
 import { jobsAPI, applicationAPI, messageAPI  } from '@/services/api'
 import { Badge, Modal, Skeleton, StatusBadge, Avatar } from '@/components/common/UI'
 import { formatDistanceToNow, format } from 'date-fns'
@@ -121,7 +121,17 @@ export default function JobDetailPage() {
               {/* Info Grid */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gray-50 dark:bg-dark-800 rounded-xl">
                 {[
-                  { icon: DollarSign, label: 'Salary', value: job.hideSalaryRange ? 'Not disclosed' : (job.salaryMin ? `$${job.salaryMin?.toLocaleString()} – $${job.salaryMax?.toLocaleString()}` : 'Negotiable') },
+                  {
+                    icon: Wallet,
+                    label: 'Salary',
+                    value: job.hideSalaryRange
+                      ? 'Not disclosed'
+                      : (
+                          job.salaryMin
+                            ? `${job.currency || '$'} ${job.salaryMin?.toLocaleString()} – ${job.currency || '$'} ${job.salaryMax?.toLocaleString()}`
+                            : 'Negotiable'
+                        )
+                  },
                   { icon: Briefcase, label: 'Experience', value: job.experience ? `${job.experience}+ years` : 'Any' },
                   { icon: Users, label: 'Openings', value: `${job.noOfJobs || 1} position${job.noOfJobs > 1 ? 's' : ''}` },
                   { icon: Clock, label: 'Posted', value: formatDistanceToNow(new Date(job.createdAt), { addSuffix: true }) },
