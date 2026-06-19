@@ -11,11 +11,16 @@ import { formatDistanceToNow } from 'date-fns'
 import { clsx } from 'clsx'
 
 export default function JSSettings() {
-  const { user, logout } = useAuthStore()
+  const { user, logout, logoutAll } = useAuthStore()
+  const { data: currentUser } = useQuery({
+    queryKey: ['me'],
+    queryFn: () => authAPI.getMe().then(r => r.data?.user),
+  })
   const navigate = useNavigate()
   const [showCurrent, setShowCurrent] = useState(false)
   const [showNew, setShowNew] = useState(false)
   const [deleteModal, setDeleteModal] = useState(false)
+  const [logoutAllModal, setLogoutAllModal] = useState(false)
 
   const { register, handleSubmit, watch, reset, formState: { errors } } = useForm()
 
@@ -34,7 +39,9 @@ export default function JSSettings() {
 
   const revokeMutation = useMutation({
     mutationFn: (id) => authAPI.revokeSession(id),
-    onSuccess: () => { toast.success('Session revoked'); qc.invalidateQueries(['sessions']) },
+    // TanStack Query v5 requires the object form — bare array shorthand
+    // silently fails to invalidate, leaving the stale session in the list.
+    onSuccess: () => { toast.success('Session revoked'); qc.invalidateQueries({ queryKey: ['sessions'] }) },
     onError: () => toast.error('Failed to revoke session'),
   })
 
@@ -42,6 +49,12 @@ export default function JSSettings() {
     mutationFn: () => authAPI.resendVerification({ email: user?.email }),
     onSuccess: () => toast.success('Verification email sent!'),
     onError: () => toast.error('Failed to send email'),
+  })
+
+  const logoutAllMutation = useMutation({
+    mutationFn: () => logoutAll(),
+    onSuccess: () => { toast.success('Logged out from all devices'); navigate('/login') },
+    onError: () => toast.error('Failed to log out everywhere'),
   })
 
   const deleteMutation = useMutation({
@@ -80,7 +93,14 @@ export default function JSSettings() {
           <div>
             <label className="label">New Password</label>
             <div className="relative">
-              <input {...register('newPassword', { required: 'Required', minLength: { value: 8, message: 'Min 8 chars' } })}
+              <input {...register('newPassword', {
+                required: 'Required',
+                minLength: { value: 8, message: 'Min 8 characters' },
+                pattern: {
+                  value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])/,
+                  message: 'Need uppercase, lowercase, number & special char'
+                }
+              })}
                 type={showNew ? 'text' : 'password'} className="input pr-10" />
               <button type="button" onClick={() => setShowNew(!showNew)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -104,7 +124,7 @@ export default function JSSettings() {
       <div className="card p-6 border-2 border-red-100 dark:border-red-900/30">
 
         {/* Email Verification */}
-        {!user?.isEmailVerified && (
+        {!currentUser?.isEmailVerified && (
           <div className="card p-6 border-2 border-amber-100 dark:border-amber-900/30">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
@@ -126,11 +146,20 @@ export default function JSSettings() {
 
         {/* Active Sessions */}
         <div className="card p-6">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-9 h-9 rounded-xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center">
-              <Monitor size={16} className="text-primary-600" />
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center">
+                <Monitor size={16} className="text-primary-600" />
+              </div>
+              <h2 className="font-display font-bold text-gray-900 dark:text-white">Active Sessions</h2>
             </div>
-            <h2 className="font-display font-bold text-gray-900 dark:text-white">Active Sessions</h2>
+            {sessions.length > 1 && (
+              <button
+                onClick={() => setLogoutAllModal(true)}
+                className="text-xs text-red-500 hover:text-red-600 font-medium flex items-center gap-1">
+                <LogOut size={12} /> Logout all devices
+              </button>
+            )}
           </div>
 
           {sessionsLoading ? (
@@ -165,7 +194,10 @@ export default function JSSettings() {
                       <p className="text-sm font-semibold text-gray-900 dark:text-white">
                         {session.deviceName || 'Unknown Device'}
                       </p>
-                      {i === 0 && <span className="badge badge-success text-xs">Current</span>}
+                      {/* Backend can't reliably identify which session is the one
+                          you're using right now — this just reflects the most
+                          recently created session, sorted newest-first. */}
+                      {i === 0 && <span className="badge badge-success text-xs">Most Recent</span>}
                     </div>
                     <div className="space-y-0.5 text-xs text-gray-400">
                       {session.ip && (
@@ -179,14 +211,12 @@ export default function JSSettings() {
                       )}
                     </div>
                   </div>
-                  {i !== 0 && (
-                    <button
-                      onClick={() => revokeMutation.mutate(session._id)}
-                      disabled={revokeMutation.isPending}
-                      className="text-xs text-red-500 hover:text-red-600 font-medium flex items-center gap-1 flex-shrink-0">
-                      <LogOut size={12} /> Revoke
-                    </button>
-                  )}
+                  <button
+                    onClick={() => revokeMutation.mutate(session._id)}
+                    disabled={revokeMutation.isPending}
+                    className="text-xs text-red-500 hover:text-red-600 font-medium flex items-center gap-1 flex-shrink-0">
+                    <LogOut size={12} /> Revoke
+                  </button>
                 </div>
               ))}
             </div>
@@ -212,6 +242,23 @@ export default function JSSettings() {
             <button onClick={() => setDeleteModal(false)} className="btn-secondary flex-1">Cancel</button>
             <button onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending} className="btn-danger flex-1">
               {deleteMutation.isPending ? 'Deleting...' : 'Delete My Account'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={logoutAllModal} onClose={() => setLogoutAllModal(false)} title="Logout from all devices">
+        <div className="space-y-4">
+          <p className="text-gray-600 dark:text-gray-300 text-sm">
+            This will sign you out everywhere, including this device. You'll need to log in again.
+          </p>
+          <div className="flex gap-3">
+            <button onClick={() => setLogoutAllModal(false)} className="btn-secondary flex-1">Cancel</button>
+            <button
+              onClick={() => logoutAllMutation.mutate()}
+              disabled={logoutAllMutation.isPending}
+              className="btn-danger flex-1">
+              {logoutAllMutation.isPending ? 'Logging out...' : 'Logout Everywhere'}
             </button>
           </div>
         </div>

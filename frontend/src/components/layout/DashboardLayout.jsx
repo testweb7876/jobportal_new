@@ -42,8 +42,8 @@ export default function DashboardLayout() {
   const location = useLocation()
   const navigate = useNavigate()
 
-  const nav = user?.role === 'employer' ? employerNav : jobseekerNav
-  const basePath = user?.role === 'employer' ? '/employer' : '/jobseeker'
+  const nav = user?.role === 'admin' || user?.role === 'superadmin' ? adminNav : user?.role === 'employer' ? employerNav : jobseekerNav
+  const basePath = user?.role === 'admin' || user?.role === 'superadmin' ? '/admin' : user?.role === 'employer' ? '/employer' : '/jobseeker'
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark)

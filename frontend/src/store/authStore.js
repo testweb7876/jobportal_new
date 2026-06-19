@@ -19,15 +19,25 @@ const useAuthStore = create(
       updateUser: (updates) => set((state) => ({
         user: { ...state.user, ...updates }
       })),
+      clearAuth: () => {
+        delete api.defaults.headers.common['Authorization']
+        set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false })
+      },
 
       logout: async () => {
         try {
           await api.post('/auth/logout', { refreshToken: get().refreshToken })
         } catch { /* silent */ }
-        delete api.defaults.headers.common['Authorization']
-        set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false })
+        get().clearAuth()
       },
 
+      logoutAll: async () => {
+        try {
+          await api.post('/auth/logout-all')
+        } finally {
+          get().clearAuth()
+        }
+      },
       setAccessToken: (token) => {
         set({ accessToken: token })
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`
@@ -39,5 +49,4 @@ const useAuthStore = create(
     }
   )
 )
-
 export default useAuthStore

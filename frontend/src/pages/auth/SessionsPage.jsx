@@ -23,7 +23,9 @@ export default function SessionsPage() {
 
   const revokeMutation = useMutation({
     mutationFn: (id) => authAPI.revokeSession(id),
-    onSuccess: () => { toast.success('Session revoked'); qc.invalidateQueries(['sessions']) },
+    // TanStack Query v5 removed the array-shorthand for invalidateQueries —
+    // it now requires an object with a queryKey field (package.json pins ^5.13.4).
+    onSuccess: () => { toast.success('Session revoked'); qc.invalidateQueries({ queryKey: ['sessions'] }) },
     onError: () => toast.error('Failed to revoke session'),
   })
 
@@ -79,7 +81,7 @@ export default function SessionsPage() {
                     {session.deviceName || 'Unknown Device'}
                   </p>
                   {i === 0 && (
-                    <span className="badge badge-success text-xs">Current</span>
+                    <span className="badge badge-success text-xs">Most Recent</span>
                   )}
                 </div>
 
@@ -101,14 +103,12 @@ export default function SessionsPage() {
                 </div>
               </div>
 
-              {i !== 0 && (
-                <button
-                  onClick={() => revokeMutation.mutate(session._id)}
-                  disabled={revokeMutation.isPending}
-                  className="flex items-center gap-1.5 btn-ghost btn-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 flex-shrink-0">
-                  <LogOut size={13} /> Revoke
-                </button>
-              )}
+              <button
+                onClick={() => revokeMutation.mutate(session._id)}
+                disabled={revokeMutation.isPending}
+                className="flex items-center gap-1.5 btn-ghost btn-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 flex-shrink-0">
+                <LogOut size={13} /> Revoke
+              </button>
             </div>
           ))}
         </div>

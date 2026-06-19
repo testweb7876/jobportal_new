@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Menu, X, Bell, Sun, Moon, ChevronDown, Briefcase, Search, User, LogOut, Settings, LayoutDashboard } from 'lucide-react'
 import useAuthStore from '@/store/authStore'
 import { Avatar } from '@/components/common/UI'
-// import { notificationAPI } from '@/services/api'
 import { useQuery } from '@tanstack/react-query'
 import { clsx } from 'clsx'
 import NotificationPanel from '@/components/common/NotificationPanel'
@@ -18,7 +17,6 @@ const navLinks = [
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
-  // const [notifOpen, setNotifOpen] = useState(false)
   const [dark, setDark] = useState(() => localStorage.getItem('theme') === 'dark')
   const [scrolled, setScrolled] = useState(false)
 
@@ -46,14 +44,6 @@ export default function Navbar() {
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
-
-  // Unread notification count
-  // const { data: unreadData } = useQuery({
-  //   queryKey: ['notif-count'],
-  //   queryFn: () => notificationAPI.unreadCount().then(r => r.data?.count || 0),
-  //   enabled: isAuthenticated,
-  //   refetchInterval: 30000,
-  // })
 
   const handleLogout = async () => {
     await logout()
@@ -139,7 +129,7 @@ export default function Navbar() {
                         {[
                           { icon: LayoutDashboard, label: 'Dashboard', to: getDashboardLink() },
                           { icon: User, label: 'Profile', to: user?.role === 'employer' ? '/employer/company' : '/jobseeker/profile' },
-                          { icon: Settings, label: 'Settings', to: `/${user?.role === 'employer' ? 'employer' : 'jobseeker'}/settings` },
+                          { icon: Settings, label: 'Settings', to: user?.role === 'employer' ? '/employer/settings' : user?.role === 'admin' || user?.role === 'superadmin' ? '/admin/settings' : '/jobseeker/settings'},
                         ].map(item => (
                           <Link key={item.label} to={item.to}
                             onClick={() => setUserMenuOpen(false)}

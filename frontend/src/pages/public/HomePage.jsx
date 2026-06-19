@@ -47,9 +47,12 @@ export default function HomePage() {
   })
 
   const { data: statsData } = useQuery({
-    queryKey: ['home-stats'],
-    queryFn: () => api.get('/admin/dashboard').then(r => r.data?.data || r.data).catch(() => null),
-  })
+  queryKey: ['home-stats'],
+  queryFn: () =>
+    jobsAPI.getPublicStats()
+      .then((r) => r.data?.data || r.data)
+      .catch(() => null),
+})
 
   const handleSearch = (e) => {
     e.preventDefault()
@@ -172,9 +175,7 @@ export default function HomePage() {
                       <Briefcase size={18} className="text-primary-600" />
                     </div>
                     <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 leading-tight">{cat.name || cat.title}</p>
-                    {cat.jobCount > 0 && (
-                      <p className="text-[10px] text-gray-400">{cat.jobCount} jobs</p>
-                    )}
+                    {cat.catTitle || cat.name || cat.title}
                   </Link>
                 </motion.div>
               ))}

@@ -1,3 +1,4 @@
+console.log("AdminDashboard rendered")
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { Users, Briefcase, Building2, DollarSign, TrendingUp, AlertTriangle, Activity, CheckCircle } from 'lucide-react'

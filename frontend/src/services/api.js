@@ -23,7 +23,7 @@ api.interceptors.request.use(
 // ── Response Interceptor ─────────────────────────────────────────────────────
 let isRefreshing = false
 let failedQueue = []
-
+ 
 const processQueue = (error, token = null) => {
   failedQueue.forEach(prom => {
     if (error) prom.reject(error)
@@ -31,12 +31,11 @@ const processQueue = (error, token = null) => {
   })
   failedQueue = []
 }
-
+ 
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
-
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
@@ -46,27 +45,21 @@ api.interceptors.response.use(
           return api(originalRequest)
         })
       }
-
       originalRequest._retry = true
       isRefreshing = true
-
+ 
       try {
         const auth = JSON.parse(localStorage.getItem('jp-auth') || '{}')
         const refreshToken = auth?.state?.refreshToken
-
         if (!refreshToken) throw new Error('No refresh token')
-
         const { data } = await axios.post(`${BASE_URL}/auth/refresh-token`, { refreshToken })
         const newToken = data.data.accessToken
-
-        // Update store
         const stored = JSON.parse(localStorage.getItem('jp-auth') || '{}')
         if (stored?.state) {
           stored.state.accessToken = newToken
           if (data.refreshToken) stored.state.refreshToken = data.refreshToken
           localStorage.setItem('jp-auth', JSON.stringify(stored))
         }
-
         api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`
         originalRequest.headers['Authorization'] = `Bearer ${newToken}`
         processQueue(null, newToken)
@@ -80,17 +73,13 @@ api.interceptors.response.use(
         isRefreshing = false
       }
     }
-
-    // Show error toast for non-401 errors
     const message = error.response?.data?.message || 'Something went wrong'
     if (error.response?.status !== 401) {
       toast.error(message)
     }
-
     return Promise.reject(error)
   }
 )
-
 export default api
 
 // ── API Helpers ──────────────────────────────────────────────────────────────
@@ -98,9 +87,11 @@ export const authAPI = {
   register: (data) => api.post('/auth/register', data),
   login: (data) => api.post('/auth/login', data),
   logout: () => api.post('/auth/logout'),
+  logoutAll: () => api.post('/auth/logout-all'),
   forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
   resetPassword: (token, data) => api.patch(`/auth/reset-password/${token}`, data),
   verifyEmail: (token) => api.get(`/auth/verify-email/${token}`),
+  resendVerification: (data) => api.post('/auth/resend-verification', data),
   getMe: () => api.get('/auth/me'),
   getSessions: () => api.get('/auth/sessions'),
   revokeSession: (id) => api.delete(`/auth/sessions/${id}`),
@@ -119,6 +110,7 @@ export const jobsAPI = {
   getFeatured: () => api.get('/jobs/featured'),
   moderate: (id, data) => api.patch(`/jobs/${id}/moderate`, data),
   analytics: (id) => api.get(`/jobs/${id}/analytics`),
+  getPublicStats: () => api.get('/jobs/stats'),
 }
 
 export const applicationAPI = {
@@ -166,7 +158,7 @@ export const packageAPI = {
   getOne: (id) => api.get(`/packages/${id}`),
   getMyPackage: () => api.get('/packages/my-package'),
 }
-
+ 
 export const settingsAPI = {
   getBankDetails:    () => api.get('/admin/settings/bank/public'),  
   updateBankDetails: (data) => api.patch('/admin/settings/bank', data),  
@@ -186,7 +178,7 @@ export const paymentAPI = {
   activateFree:   (data) => api.post('/payments/free/activate', data),
   history:        (params) => api.get('/payments/history', { params }),
 }
-
+ 
 export const notificationAPI = {
   getAll: (params) => api.get('/notifications', { params }),
   markRead: (id) => api.patch(`/notifications/${id}/read`),
@@ -198,7 +190,7 @@ export const notificationAPI = {
 export const interviewsAPI = {
   getUpcoming: () => api.get('/interviews'),
 }
-
+ 
 export const followersAPI = {
   getFollowing: () => api.get('/followers/following'),
 }
@@ -206,7 +198,7 @@ export const followersAPI = {
 export const reportsAPI = {
   submit: (data) => api.post('/reports', data),
 }
-
+ 
 export const messageAPI = {
   getConversations: () => api.get('/messages/conversations'),
   getOrCreate: (data) => api.post('/messages/conversations', data),
@@ -242,7 +234,7 @@ export const searchAPI = {
   saveSearch: (data) => api.post('/search/saved', data),
   deleteSearch: (id) => api.delete(`/search/saved/${id}`),
 }
-
+ 
 export const categoriesAPI = {
   getCategories: () => api.get('/categories/categories'),
   getJobTypes: () => api.get('/categories/job-types'),
@@ -257,16 +249,12 @@ export const uploadAPI = {
   file: (formData, folder) => api.post(`/uploads/file?folder=${folder}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   deleteFile: (publicId) => api.delete(`/uploads/delete/${encodeURIComponent(publicId)}`),
 }
-
+ 
 export const alertsAPI = {
   getAll: () => api.get('/job-alerts'),
-
   create: (data) => api.post('/job-alerts', data),
-
   update: (id, data) => api.patch(`/job-alerts/${id}`, data),
-
   delete: (id) => api.delete(`/job-alerts/${id}`),
-
   toggle: (id, status) =>
     api.patch(`/job-alerts/${id}`, { status }),
 }

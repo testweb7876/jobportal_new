@@ -1,9 +1,13 @@
 const Job = require('../models/Job.model');
+const Company = require('../models/Company.model');
+const User = require('../models/User.model');
+const Application = require('../models/Application.model');
 const { UserPackage } = require('../models/Payment.model');
 const { ActivityLog, JobShortlist } = require('../models/Misc.model');
 const { AppError, asyncHandler, sendSuccess, sendPaginated } = require('../utils/AppError');
 const { cache } = require('../config/redis');
 const notificationService = require('../services/notification.service');
+const emailService = require('../services/email.service');
 
 // ─── BUILD QUERY HELPER ──────────────────────────────────────────────────────
 const buildJobQuery = (query) => {
@@ -300,6 +304,11 @@ exports.moderateJob = asyncHandler(async (req, res, next) => {
       refModel: 'Job',
       refId: job._id,
     });
+
+    // Email — employer needs to know whether their job is live or not
+    try {
+      await emailService.sendJobModerationUpdate(job.uid, job, status, note);
+    } catch { /* silent */ }
   }
 
   sendSuccess(res, { job }, `Job ${status}`);
@@ -325,3 +334,23 @@ exports.getJobAnalytics = asyncHandler(async (req, res, next) => {
     statusBreakdown: stats,
   }, 'Job analytics');
 });
+
+exports.getPublicStats = asyncHandler(async (req, res) => {
+  const [totalJobs, totalCompanies, totalUsers, totalApplications] =
+    await Promise.all([
+      Job.countDocuments({ status: 'approved' }),
+      Company.countDocuments({}),
+      User.countDocuments({ role: 'jobseeker' }),
+      Application.countDocuments({})
+    ])
+
+  res.status(200).json({
+    success: true,
+    data: {
+      totalJobs,
+      totalCompanies,
+      totalUsers,
+      totalApplications
+    }
+  })
+})

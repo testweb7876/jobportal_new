@@ -18,11 +18,14 @@ const initQueues = () => {
     const notificationWorker = new Worker('notifications', async (job) => {
       if (job.name === 'send-email-notification') {
         const Notification = require('../models/Notification.model');
+        const emailService = require('../services/email.service');
         const notification = await Notification.findById(job.data.notificationId)
           .populate('recipientId', 'email firstName');
 
-        if (notification && !notification.emailSent) {
-          // Send email
+        if (notification && !notification.emailSent && notification.recipientId?.email) {
+          // Previously this only flagged emailSent=true without actually sending anything.
+          // Now it sends a generic email built from the notification's title/message.
+          await emailService.sendNotificationEmail(notification.recipientId, notification);
           await Notification.findByIdAndUpdate(job.data.notificationId, { emailSent: true });
         }
       }

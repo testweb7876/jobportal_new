@@ -144,10 +144,22 @@ exports.stripeWebhook = async (req, res) => {
 
     if (event.type === 'payment_intent.payment_failed') {
       const pi = event.data.object;
-      await Invoice.findOneAndUpdate(
+      const invoice = await Invoice.findOneAndUpdate(
         { transactionId: pi.id },
-        { paymentStatus: 'failed' }
+        { paymentStatus: 'failed' },
+        { new: true }
       );
+
+      // Email — user should know their payment didn't go through
+      if (invoice) {
+        const User = require('../models/User.model');
+        const user = await User.findById(invoice.uid);
+        if (user) {
+          try {
+            await emailService.sendPaymentFailed(user, invoice);
+          } catch { /* silent */ }
+        }
+      }
     }
   } catch (err) {
     logger.error('Webhook processing error:', err);
@@ -222,6 +234,15 @@ exports.capturePaypalOrder = asyncHandler(async (req, res, next) => {
     if (invoice) {
       await activateUserPackage(userId, packageId, invoice._id);
 
+      // Email — was missing here while Stripe + bank already had it; now consistent across all gateways
+      const User = require('../models/User.model');
+      const user = await User.findById(userId);
+      if (user) {
+        try {
+          await emailService.sendPaymentConfirmation(user, invoice);
+        } catch { /* silent */ }
+      }
+
       await notificationService.create({
         recipientId: userId,
         type: 'payment_success',
@@ -261,6 +282,11 @@ exports.submitBankTransfer = asyncHandler(async (req, res, next) => {
     payerEmail: req.user.email,
     payerName: `${req.user.firstName} ${req.user.lastName}`,
   });
+
+  // Email — confirm we received the proof, so the user isn't left wondering
+  try {
+    await emailService.sendBankProofReceived(req.user, invoice);
+  } catch { /* silent */ }
 
   sendSuccess(res, { invoice }, 'Bank transfer proof submitted. Admin will verify within 24-48 hours.', 201);
 });
@@ -330,6 +356,11 @@ exports.requestRefund = asyncHandler(async (req, res, next) => {
     refundReason: req.body.reason,
   });
 
+  // Email — confirm the refund request was received
+  try {
+    await emailService.sendRefundStatusUpdate(req.user, invoice, 'requested');
+  } catch { /* silent */ }
+
   sendSuccess(res, {}, 'Refund request submitted. Admin will process within 5-7 business days.');
 });
 
@@ -347,7 +378,7 @@ exports.getBankTransfers = asyncHandler(async (req, res) => {
 // ─── ADMIN: UPDATE BANK TRANSFER STATUS ──────────────────────────────────────
 exports.updateBankTransferStatus = asyncHandler(async (req, res, next) => {
   const { status } = req.body
-  const invoice = await Invoice.findById(req.params.invoiceId)
+  const invoice = await Invoice.findById(req.params.invoiceId).populate('uid', 'email firstName')
   if (!invoice) return next(new AppError('Invoice not found.', 404))
   if (invoice.payMethod !== 'bank') return next(new AppError('Not a bank transfer.', 400))
 
@@ -357,9 +388,20 @@ exports.updateBankTransferStatus = asyncHandler(async (req, res, next) => {
   // Agar approve kar rahe ho toh package bhi activate karo
   if (status === 'paid' && invoice.paymentStatus !== 'paid') {
     await Invoice.findByIdAndUpdate(invoice._id, { paymentStatus: 'paid', paidAt: new Date() })
-    await activateUserPackage(invoice.uid, invoice.recordId, invoice._id)
+    await activateUserPackage(invoice.uid._id, invoice.recordId, invoice._id)
+
+    // This path was missing the confirmation email that approveBankTransfer already sends — now consistent
+    try {
+      await emailService.sendPaymentConfirmation(invoice.uid, invoice)
+    } catch { /* silent */ }
   } else {
     await Invoice.findByIdAndUpdate(invoice._id, { paymentStatus: status })
+
+    if (status === 'rejected' || status === 'failed') {
+      try {
+        await emailService.sendPaymentFailed(invoice.uid, invoice)
+      } catch { /* silent */ }
+    }
   }
 
   sendSuccess(res, {}, `Status updated to ${status}`)

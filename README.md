@@ -162,37 +162,88 @@ Frontend runs on **http://localhost:3000** · Backend on **http://localhost:5000
 <summary><b>Backend `.env`</b> (click to expand)</summary>
 
 ```env
+# ============================================
+# JOB PORTAL - ENVIRONMENT CONFIGURATION
+# ============================================
+
+# SERVER
 NODE_ENV=development
 PORT=5000
 CLIENT_URL=http://localhost:3000
+# CLIENT_URL=http://localhost:3001
+API_VERSION=v1
 
-MONGO_URI=mongodb://localhost:27017/jobportal
+# MONGODB
+MONGO_URI=mongodb+srv://amitlms:%21%40%23%24%25@lms.6wc6rbx.mongodb.net/jobportal?retryWrites=true&w=majority&appName=lms
+MONGO_URI_PROD=mongodb+srv://amitlms:%21%40%23%24%25@lms.6wc6rbx.mongodb.net/jobportal?retryWrites=true&w=majority&appName=lms
 
+# JWT SECRETS
 JWT_SECRET=your_super_secret_jwt_key_min_32_chars
-JWT_EXPIRES_IN=15m
+JWT_EXPIRES_IN=7d
+JWT_REFRESH_SECRET=your_refresh_token_secret_min_32_chars
+JWT_REFRESH_EXPIRES_IN=7d
+JWT_EMAIL_SECRET=your_email_verification_secret
+JWT_EMAIL_EXPIRES_IN=24h
+JWT_RESET_SECRET=your_password_reset_secret
+JWT_RESET_EXPIRES_IN=1h
 
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
+# CLOUDINARY
+CLOUDINARY_CLOUD_NAME=dcaublx3n
+CLOUDINARY_API_KEY=784734272515381
+CLOUDINARY_API_SECRET=4ERjSmjW0EQfUtFpVQ4tHsRVfus
 
+# REDIS
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
 REDIS_URL=redis://localhost:6379
 
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your_email@gmail.com
-SMTP_PASS=your_app_password
-EMAIL_FROM=noreply@jobportal.com
+# EMAIL (SMTP)
+SMTP_HOST=smtp.emailtest.dev
+SMTP_PORT=2525
+SMTP_USER=user_N8KNSnvopO34fDf5
+SMTP_PASS=OVWBG6GdAXkWFB4KyH8Bpw
+EMAIL_FROM=default-li7ldo3glnkvgwr32beucllb@local
+EMAIL_FROM_NAME=JobPortal
 
-STRIPE_SECRET_KEY=sk_test_your_key
-STRIPE_WEBHOOK_SECRET=whsec_your_secret
+# STRIPE
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=whsec_
+STRIPE_PUBLISHABLE_KEY=
 
+# PAYPAL
 PAYPAL_CLIENT_ID=your_paypal_client_id
 PAYPAL_CLIENT_SECRET=your_paypal_client_secret
 PAYPAL_MODE=sandbox
 
-COOKIE_SECRET=your_cookie_secret
+# SENTRY
+SENTRY_DSN=https://your_sentry_dsn
+
+# RATE LIMITING
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX=100
+AUTH_RATE_LIMIT_MAX=5
+
+# BCRYPT
 BCRYPT_ROUNDS=12
+
+# COOKIES
+COOKIE_SECRET=your_cookie_secret
+COOKIE_EXPIRES_DAYS=7
+
+# UPLOAD LIMITS
+MAX_FILE_SIZE=10485760
+MAX_IMAGE_SIZE=5242880
+ALLOWED_IMAGE_TYPES=image/jpeg,image/png,image/webp,image/gif
+ALLOWED_FILE_TYPES=application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document
+
+# CRON
 ENABLE_CRON=true
+
+# ADMIN
+ADMIN_EMAIL=admin@jobportal.com
+ADMIN_SECRET_KEY=admin_creation_secret
+
 ```
 </details>
 

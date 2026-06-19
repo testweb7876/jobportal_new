@@ -4,6 +4,7 @@ const { AppError, asyncHandler, sendSuccess, sendPaginated } = require('../utils
 const { uploadToCloudinary, deleteFromCloudinary } = require('../services/cloudinary.service');
 const { cache } = require('../config/redis');
 const { ActivityLog } = require('../models/Misc.model');
+const emailService = require('../services/email.service');
 
 // ─── GET ALL COMPANIES (PUBLIC) ───────────────────────────────────────────────
 exports.getCompanies = asyncHandler(async (req, res, next) => {
@@ -161,19 +162,24 @@ exports.submitVerification = asyncHandler(async (req, res, next) => {
 
 // ─── FOLLOW / UNFOLLOW ────────────────────────────────────────────────────────
 exports.toggleFollow = asyncHandler(async (req, res, next) => {
-  const company = await Company.findById(req.params.id);
+  // Accept both ObjectId and slug — same pattern as getCompany.
+  // Frontend often passes the slug here since the company page is loaded by slug.
+  const identifier = req.params.id;
+  const filter = identifier.match(/^[0-9a-fA-F]{24}$/) ? { _id: identifier } : { slug: identifier };
+
+  const company = await Company.findOne(filter);
   if (!company) return next(new AppError('Company not found.', 404));
 
-  const existing = await Follower.findOne({ followerId: req.user._id, companyId: req.params.id });
+  const existing = await Follower.findOne({ followerId: req.user._id, companyId: company._id });
 
   if (existing) {
     await Follower.findByIdAndDelete(existing._id);
-    await Company.findByIdAndUpdate(req.params.id, { $inc: { followersCount: -1 } });
+    await Company.findByIdAndUpdate(company._id, { $inc: { followersCount: -1 } });
     return sendSuccess(res, { following: false }, 'Unfollowed company');
   }
 
-  await Follower.create({ followerId: req.user._id, companyId: req.params.id });
-  await Company.findByIdAndUpdate(req.params.id, { $inc: { followersCount: 1 } });
+  await Follower.create({ followerId: req.user._id, companyId: company._id });
+  await Company.findByIdAndUpdate(company._id, { $inc: { followersCount: 1 } });
 
   sendSuccess(res, { following: true }, 'Following company');
 });
@@ -207,6 +213,11 @@ exports.verifyCompany = asyncHandler(async (req, res, next) => {
     refModel: 'Company',
     refId: company._id,
   });
+
+  // Email — employer should know the verification outcome, not just in-app
+  try {
+    await emailService.sendCompanyVerificationUpdate(company.uid, company, status, note);
+  } catch { /* silent */ }
 
   sendSuccess(res, { company }, `Company ${status}`);
 });
