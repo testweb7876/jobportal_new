@@ -1,28 +1,27 @@
 require('dotenv').config({ path: '../.env' });
 const mongoose = require('mongoose');
-const bcrypt   = require('bcryptjs');
+const bcrypt = require('bcryptjs');
 
 // ── Logger fallback ────────────────────────────────────────────────────────────
 let logger;
 try { logger = require('./config/logger'); }
-catch { logger = { info: console.log, error: console.error }; }
+catch { logger = { info: console.log, error: console.error, warn: console.warn }; }
 
 // ── DB connect ─────────────────────────────────────────────────────────────────
 let connectDB;
 try { connectDB = require('./config/database'); }
 catch {
   connectDB = async () => {
-    const uri = process.env.MONGO_URI || 'mongodb+srv://amitlms:%21%40%23%24%25@lms.6wc6rbx.mongodb.net/jobportal?retryWrites=true&w=majority&appName=lms';
-    console.log('MONGO_URI =', process.env.MONGO_URI);
+    const uri = process.env.MONGO_URI || 'mongodb://localhost:27017/jobportal';
     await mongoose.connect(uri);
-    logger.info('MongoDB connected (fallback)');
+    logger.info('MongoDB connected');
   };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 const seed = async () => {
   await connectDB();
-  logger.info('🌱 Starting full seed...');
+  logger.info('🌱 Starting full realistic seed...');
 
   // ── Model imports ─────────────────────────────────────────────────────────────
   const User         = require('./models/User.model');
@@ -41,20 +40,31 @@ const seed = async () => {
     Department, CoverLetter, JobAlert, JobShortlist,
     ActivityLog, Tag, Follower, Report,
     EmployerViewResume, SavedSearch,
-    Folder, FolderResume, SystemError,
+    Folder, FolderResume, SystemError, Setting,
   } = require('./models/Misc.model');
 
-  // ── Wipe helper ───────────────────────────────────────────────────────────────
+  // ── Wipe all collections ───────────────────────────────────────────────────────
   const wipe = async (...models) => {
     for (const m of models) {
       try { await m.deleteMany({}); } catch { /* skip */ }
     }
   };
 
+  await wipe(
+    User, RefreshToken, Job, Resume, Company, Application, Package,
+    UserPackage, Invoice, TransactionLog, Subscription,
+    Conversation, Message, Notification,
+    Category, JobType, CareerLevel, Education, SalaryRangeType,
+    Currency, Country, State, City, Department, CoverLetter,
+    JobAlert, JobShortlist, ActivityLog, Tag, Follower, Report,
+    EmployerViewResume, SavedSearch, Folder, FolderResume, SystemError, Setting
+  );
+
+  logger.info('🗑️  All collections wiped.');
+
   // ═════════════════════════════════════════════════════════════════════════════
   // 1 · CURRENCIES
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(Currency);
   const currencies = await Currency.insertMany([
     { title: 'Indian Rupee',     symbol: '₹',   code: 'INR', status: true, isDefault: true,  ordering: 1 },
     { title: 'US Dollar',        symbol: '$',   code: 'USD', status: true, isDefault: false, ordering: 2 },
@@ -68,34 +78,43 @@ const seed = async () => {
   // ═════════════════════════════════════════════════════════════════════════════
   // 2 · CATEGORIES
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(Category);
   const parentCats = await Category.insertMany([
-    { catTitle: 'Information Technology', alias: 'it',               isActive: true, ordering: 1,  parentId: null },
-    { catTitle: 'Marketing & Sales',      alias: 'marketing',        isActive: true, ordering: 2,  parentId: null },
-    { catTitle: 'Finance & Accounting',   alias: 'finance',          isActive: true, ordering: 3,  parentId: null },
-    { catTitle: 'Human Resources',        alias: 'hr',               isActive: true, ordering: 4,  parentId: null },
-    { catTitle: 'Engineering',            alias: 'engineering',      isActive: true, ordering: 5,  parentId: null },
-    { catTitle: 'Healthcare',             alias: 'healthcare',       isActive: true, ordering: 6,  parentId: null },
-    { catTitle: 'Education & Training',   alias: 'education',        isActive: true, ordering: 7,  parentId: null },
-    { catTitle: 'Design & Creative',      alias: 'design',           isActive: true, ordering: 8,  parentId: null },
-    { catTitle: 'Operations & Logistics', alias: 'operations',       isActive: true, ordering: 9,  parentId: null },
-    { catTitle: 'Customer Service',       alias: 'customer-service', isActive: true, ordering: 10, parentId: null },
+    { catTitle: 'Information Technology',  alias: 'information-technology', isActive: true, ordering: 1,  parentId: null },
+    { catTitle: 'Marketing & Sales',       alias: 'marketing-sales',        isActive: true, ordering: 2,  parentId: null },
+    { catTitle: 'Finance & Accounting',    alias: 'finance-accounting',     isActive: true, ordering: 3,  parentId: null },
+    { catTitle: 'Human Resources',         alias: 'human-resources',        isActive: true, ordering: 4,  parentId: null },
+    { catTitle: 'Engineering',             alias: 'engineering',            isActive: true, ordering: 5,  parentId: null },
+    { catTitle: 'Healthcare & Pharma',     alias: 'healthcare-pharma',      isActive: true, ordering: 6,  parentId: null },
+    { catTitle: 'Education & Training',    alias: 'education-training',     isActive: true, ordering: 7,  parentId: null },
+    { catTitle: 'Design & Creative',       alias: 'design-creative',        isActive: true, ordering: 8,  parentId: null },
+    { catTitle: 'Operations & Logistics',  alias: 'operations-logistics',   isActive: true, ordering: 9,  parentId: null },
+    { catTitle: 'Customer Support',        alias: 'customer-support',       isActive: true, ordering: 10, parentId: null },
+    { catTitle: 'Sales & Business Dev',    alias: 'sales-business',         isActive: true, ordering: 11, parentId: null },
+    { catTitle: 'Legal & Compliance',      alias: 'legal-compliance',       isActive: true, ordering: 12, parentId: null },
   ]);
+
   await Category.insertMany([
-    { catTitle: 'Software Development', alias: 'software-dev',     isActive: true, ordering: 1, parentId: parentCats[0]._id },
-    { catTitle: 'Data Science & AI',    alias: 'data-science',     isActive: true, ordering: 2, parentId: parentCats[0]._id },
-    { catTitle: 'DevOps & Cloud',       alias: 'devops',           isActive: true, ordering: 3, parentId: parentCats[0]._id },
-    { catTitle: 'Mobile Development',   alias: 'mobile-dev',       isActive: true, ordering: 4, parentId: parentCats[0]._id },
-    { catTitle: 'UI/UX Design',         alias: 'ui-ux',            isActive: true, ordering: 1, parentId: parentCats[7]._id },
-    { catTitle: 'Graphic Design',       alias: 'graphic-design',   isActive: true, ordering: 2, parentId: parentCats[7]._id },
-    { catTitle: 'Performance Marketing',alias: 'perf-marketing',   isActive: true, ordering: 1, parentId: parentCats[1]._id },
+    // IT sub-categories
+    { catTitle: 'Software Development',    alias: 'software-development',   isActive: true, ordering: 1, parentId: parentCats[0]._id },
+    { catTitle: 'Data Science & AI',       alias: 'data-science-ai',        isActive: true, ordering: 2, parentId: parentCats[0]._id },
+    { catTitle: 'DevOps & Cloud',          alias: 'devops-cloud',           isActive: true, ordering: 3, parentId: parentCats[0]._id },
+    { catTitle: 'Mobile Development',      alias: 'mobile-development',     isActive: true, ordering: 4, parentId: parentCats[0]._id },
+    { catTitle: 'Cybersecurity',           alias: 'cybersecurity',          isActive: true, ordering: 5, parentId: parentCats[0]._id },
+    { catTitle: 'QA & Testing',            alias: 'qa-testing',             isActive: true, ordering: 6, parentId: parentCats[0]._id },
+    // Design sub-categories
+    { catTitle: 'UI/UX Design',            alias: 'ui-ux-design',           isActive: true, ordering: 1, parentId: parentCats[7]._id },
+    { catTitle: 'Graphic Design',          alias: 'graphic-design',         isActive: true, ordering: 2, parentId: parentCats[7]._id },
+    { catTitle: 'Motion Graphics',         alias: 'motion-graphics',        isActive: true, ordering: 3, parentId: parentCats[7]._id },
+    // Marketing sub-categories
+    { catTitle: 'Performance Marketing',   alias: 'performance-marketing',  isActive: true, ordering: 1, parentId: parentCats[1]._id },
+    { catTitle: 'Content & SEO',           alias: 'content-seo',            isActive: true, ordering: 2, parentId: parentCats[1]._id },
+    { catTitle: 'Brand Marketing',         alias: 'brand-marketing',        isActive: true, ordering: 3, parentId: parentCats[1]._id },
   ]);
   logger.info(`✅ ${parentCats.length} parent categories + sub-categories`);
 
   // ═════════════════════════════════════════════════════════════════════════════
   // 3 · JOB TYPES
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(JobType);
   const jobTypes = await JobType.insertMany([
     { title: 'Full Time',  alias: 'full-time',  color: '#059669', isActive: true, status: true, ordering: 1 },
     { title: 'Part Time',  alias: 'part-time',  color: '#2563eb', isActive: true, status: true, ordering: 2 },
@@ -103,124 +122,157 @@ const seed = async () => {
     { title: 'Internship', alias: 'internship', color: '#7c3aed', isActive: true, status: true, ordering: 4 },
     { title: 'Freelance',  alias: 'freelance',  color: '#db2777', isActive: true, status: true, ordering: 5 },
     { title: 'Remote',     alias: 'remote',     color: '#0891b2', isActive: true, status: true, ordering: 6 },
-    { title: 'Temporary',  alias: 'temporary',  color: '#ea580c', isActive: true, status: true, ordering: 7 },
   ]);
   logger.info(`✅ ${jobTypes.length} job types`);
 
   // ═════════════════════════════════════════════════════════════════════════════
   // 4 · CAREER LEVELS
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(CareerLevel);
   const careerLevels = await CareerLevel.insertMany([
-    { title: 'Entry Level',      status: true, ordering: 1 },
-    { title: 'Mid Level',        status: true, ordering: 2 },
-    { title: 'Senior Level',     status: true, ordering: 3 },
-    { title: 'Team Lead',        status: true, ordering: 4 },
-    { title: 'Manager',          status: true, ordering: 5 },
-    { title: 'Senior Manager',   status: true, ordering: 6 },
-    { title: 'Director',         status: true, ordering: 7 },
-    { title: 'VP / C-Level',     status: true, ordering: 8 },
-    { title: 'Executive',        status: true, ordering: 9 },
-    { title: 'Student / Intern', status: true, ordering: 10 },
+    { title: 'Student / Intern',  status: true, ordering: 1 },
+    { title: 'Entry Level (0–2 yrs)', status: true, ordering: 2 },
+    { title: 'Mid Level (2–5 yrs)',   status: true, ordering: 3 },
+    { title: 'Senior Level (5+ yrs)', status: true, ordering: 4 },
+    { title: 'Team Lead',         status: true, ordering: 5 },
+    { title: 'Manager',           status: true, ordering: 6 },
+    { title: 'Senior Manager',    status: true, ordering: 7 },
+    { title: 'Director',          status: true, ordering: 8 },
+    { title: 'VP / C-Level',      status: true, ordering: 9 },
+    { title: 'Executive',         status: true, ordering: 10 },
   ]);
   logger.info(`✅ ${careerLevels.length} career levels`);
 
   // ═════════════════════════════════════════════════════════════════════════════
   // 5 · EDUCATION
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(Education);
   const educations = await Education.insertMany([
-    { title: 'High School',                isActive: true, ordering: 1 },
-    { title: 'Diploma',                    isActive: true, ordering: 2 },
-    { title: "Bachelor's Degree",          isActive: true, ordering: 3, isDefault: true },
-    { title: "Master's Degree",            isActive: true, ordering: 4 },
+    { title: 'High School / 12th',         isActive: true, ordering: 1 },
+    { title: 'Diploma / ITI',              isActive: true, ordering: 2 },
+    { title: "Bachelor's Degree (B.Tech / B.E / BCA / B.Sc)", isActive: true, ordering: 3, isDefault: true },
+    { title: "Master's Degree (M.Tech / MCA / MBA / M.Sc)",   isActive: true, ordering: 4 },
     { title: 'PhD / Doctorate',            isActive: true, ordering: 5 },
     { title: 'Professional Certification', isActive: true, ordering: 6 },
-    { title: 'Any',                        isActive: true, ordering: 7 },
+    { title: 'Any Graduate',               isActive: true, ordering: 7 },
+    { title: 'Any Postgraduate',           isActive: true, ordering: 8 },
   ]);
   logger.info(`✅ ${educations.length} education levels`);
 
   // ═════════════════════════════════════════════════════════════════════════════
   // 6 · SALARY RANGE TYPES
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(SalaryRangeType);
   const salaryTypes = await SalaryRangeType.insertMany([
-    { title: 'Per Month', status: true, ordering: 1, isDefault: true },
-    { title: 'Per Year',  status: true, ordering: 2 },
-    { title: 'Per Hour',  status: true, ordering: 3 },
-    { title: 'Per Day',   status: true, ordering: 4 },
-    { title: 'Fixed',     status: true, ordering: 5 },
+    { title: 'Per Month',  status: true, ordering: 1, isDefault: true },
+    { title: 'Per Annum',  status: true, ordering: 2 },
+    { title: 'Per Hour',   status: true, ordering: 3 },
+    { title: 'Per Day',    status: true, ordering: 4 },
+    { title: 'Fixed CTC',  status: true, ordering: 5 },
   ]);
   logger.info(`✅ ${salaryTypes.length} salary range types`);
 
   // ═════════════════════════════════════════════════════════════════════════════
   // 7 · COUNTRIES → STATES → CITIES
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(Country, State, City);
-  const [india, usa, uk, uae] = await Country.insertMany([
+  const [india, usa, uk, uae, singapore] = await Country.insertMany([
     { name: 'India',                nameCode: 'IN', shortCountry: 'IND', dialCode: 91,  enabled: true },
     { name: 'United States',        nameCode: 'US', shortCountry: 'USA', dialCode: 1,   enabled: true },
     { name: 'United Kingdom',       nameCode: 'GB', shortCountry: 'GBR', dialCode: 44,  enabled: true },
     { name: 'United Arab Emirates', nameCode: 'AE', shortCountry: 'ARE', dialCode: 971, enabled: true },
     { name: 'Singapore',            nameCode: 'SG', shortCountry: 'SGP', dialCode: 65,  enabled: true },
+    { name: 'Germany',              nameCode: 'DE', shortCountry: 'DEU', dialCode: 49,  enabled: true },
+    { name: 'Canada',               nameCode: 'CA', shortCountry: 'CAN', dialCode: 1,   enabled: true },
+    { name: 'Australia',            nameCode: 'AU', shortCountry: 'AUS', dialCode: 61,  enabled: true },
   ]);
-  const [mh, ka, dl, tn, ca, ny] = await State.insertMany([
-    { name: 'Maharashtra', shortRegion: 'MH', countryId: india._id, enabled: true },
-    { name: 'Karnataka',   shortRegion: 'KA', countryId: india._id, enabled: true },
-    { name: 'Delhi',       shortRegion: 'DL', countryId: india._id, enabled: true },
-    { name: 'Tamil Nadu',  shortRegion: 'TN', countryId: india._id, enabled: true },
-    { name: 'California',  shortRegion: 'CA', countryId: usa._id,   enabled: true },
-    { name: 'New York',    shortRegion: 'NY', countryId: usa._id,   enabled: true },
+
+  const [mh, ka, dl, tn, tel, guj, wb, pb, ca, ny, tx] = await State.insertMany([
+    { name: 'Maharashtra',      shortRegion: 'MH',  countryId: india._id, enabled: true },
+    { name: 'Karnataka',        shortRegion: 'KA',  countryId: india._id, enabled: true },
+    { name: 'Delhi',            shortRegion: 'DL',  countryId: india._id, enabled: true },
+    { name: 'Tamil Nadu',       shortRegion: 'TN',  countryId: india._id, enabled: true },
+    { name: 'Telangana',        shortRegion: 'TS',  countryId: india._id, enabled: true },
+    { name: 'Gujarat',          shortRegion: 'GJ',  countryId: india._id, enabled: true },
+    { name: 'West Bengal',      shortRegion: 'WB',  countryId: india._id, enabled: true },
+    { name: 'Punjab',           shortRegion: 'PB',  countryId: india._id, enabled: true },
+    { name: 'California',       shortRegion: 'CA',  countryId: usa._id,   enabled: true },
+    { name: 'New York',         shortRegion: 'NY',  countryId: usa._id,   enabled: true },
+    { name: 'Texas',            shortRegion: 'TX',  countryId: usa._id,   enabled: true },
   ]);
+
   const cities = await City.insertMany([
-    { name: 'Mumbai',        cityName: 'Mumbai',        stateId: mh._id, countryId: india._id, enabled: true, latitude: '19.0760', longitude: '72.8777' },
-    { name: 'Pune',          cityName: 'Pune',          stateId: mh._id, countryId: india._id, enabled: true, latitude: '18.5204', longitude: '73.8567' },
-    { name: 'Bangalore',     cityName: 'Bangalore',     stateId: ka._id, countryId: india._id, enabled: true, latitude: '12.9716', longitude: '77.5946' },
-    { name: 'New Delhi',     cityName: 'New Delhi',     stateId: dl._id, countryId: india._id, enabled: true, latitude: '28.6139', longitude: '77.2090' },
-    { name: 'Hyderabad',     cityName: 'Hyderabad',     stateId: ka._id, countryId: india._id, enabled: true, latitude: '17.3850', longitude: '78.4867' },
-    { name: 'Chennai',       cityName: 'Chennai',       stateId: tn._id, countryId: india._id, enabled: true, latitude: '13.0827', longitude: '80.2707' },
-    { name: 'San Francisco', cityName: 'San Francisco', stateId: ca._id, countryId: usa._id,   enabled: true, latitude: '37.7749', longitude: '-122.4194' },
-    { name: 'New York City', cityName: 'New York City', stateId: ny._id, countryId: usa._id,   enabled: true, latitude: '40.7128', longitude: '-74.0060' },
-    { name: 'London',        cityName: 'London',        stateId: null,   countryId: uk._id,    enabled: true, latitude: '51.5074', longitude: '-0.1278' },
-    { name: 'Dubai',         cityName: 'Dubai',         stateId: null,   countryId: uae._id,   enabled: true, latitude: '25.2048', longitude: '55.2708' },
+    { name: 'Mumbai',         cityName: 'Mumbai',         stateId: mh._id,  countryId: india._id, enabled: true, latitude: '19.0760', longitude: '72.8777' },
+    { name: 'Pune',           cityName: 'Pune',           stateId: mh._id,  countryId: india._id, enabled: true, latitude: '18.5204', longitude: '73.8567' },
+    { name: 'Bengaluru',      cityName: 'Bengaluru',      stateId: ka._id,  countryId: india._id, enabled: true, latitude: '12.9716', longitude: '77.5946' },
+    { name: 'Mysuru',         cityName: 'Mysuru',         stateId: ka._id,  countryId: india._id, enabled: true, latitude: '12.2958', longitude: '76.6394' },
+    { name: 'New Delhi',      cityName: 'New Delhi',      stateId: dl._id,  countryId: india._id, enabled: true, latitude: '28.6139', longitude: '77.2090' },
+    { name: 'Noida',          cityName: 'Noida',          stateId: dl._id,  countryId: india._id, enabled: true, latitude: '28.5355', longitude: '77.3910' },
+    { name: 'Chennai',        cityName: 'Chennai',        stateId: tn._id,  countryId: india._id, enabled: true, latitude: '13.0827', longitude: '80.2707' },
+    { name: 'Coimbatore',     cityName: 'Coimbatore',     stateId: tn._id,  countryId: india._id, enabled: true, latitude: '11.0168', longitude: '76.9558' },
+    { name: 'Hyderabad',      cityName: 'Hyderabad',      stateId: tel._id, countryId: india._id, enabled: true, latitude: '17.3850', longitude: '78.4867' },
+    { name: 'Ahmedabad',      cityName: 'Ahmedabad',      stateId: guj._id, countryId: india._id, enabled: true, latitude: '23.0225', longitude: '72.5714' },
+    { name: 'Kolkata',        cityName: 'Kolkata',        stateId: wb._id,  countryId: india._id, enabled: true, latitude: '22.5726', longitude: '88.3639' },
+    { name: 'Chandigarh',     cityName: 'Chandigarh',     stateId: pb._id,  countryId: india._id, enabled: true, latitude: '30.7333', longitude: '76.7794' },
+    { name: 'San Francisco',  cityName: 'San Francisco',  stateId: ca._id,  countryId: usa._id,   enabled: true, latitude: '37.7749', longitude: '-122.4194' },
+    { name: 'New York City',  cityName: 'New York City',  stateId: ny._id,  countryId: usa._id,   enabled: true, latitude: '40.7128', longitude: '-74.0060' },
+    { name: 'Austin',         cityName: 'Austin',         stateId: tx._id,  countryId: usa._id,   enabled: true, latitude: '30.2672', longitude: '-97.7431' },
+    { name: 'London',         cityName: 'London',         stateId: null,    countryId: uk._id,    enabled: true, latitude: '51.5074', longitude: '-0.1278' },
+    { name: 'Dubai',          cityName: 'Dubai',          stateId: null,    countryId: uae._id,   enabled: true, latitude: '25.2048', longitude: '55.2708' },
+    { name: 'Singapore City', cityName: 'Singapore City', stateId: null,    countryId: singapore._id, enabled: true, latitude: '1.3521', longitude: '103.8198' },
   ]);
-  logger.info(`✅ ${cities.length} cities across 4 countries`);
+  logger.info(`✅ ${cities.length} cities across 8 countries`);
 
   // ═════════════════════════════════════════════════════════════════════════════
   // 8 · TAGS
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(Tag);
   await Tag.insertMany([
+    // Tech skills (tagFor: 1 = job)
     { tag: 'JavaScript',       alias: 'javascript',       tagFor: 1, status: true },
+    { tag: 'TypeScript',       alias: 'typescript',       tagFor: 1, status: true },
     { tag: 'Python',           alias: 'python',           tagFor: 1, status: true },
-    { tag: 'React',            alias: 'react',            tagFor: 1, status: true },
+    { tag: 'Java',             alias: 'java',             tagFor: 1, status: true },
+    { tag: 'Golang',           alias: 'golang',           tagFor: 1, status: true },
+    { tag: 'React.js',         alias: 'reactjs',          tagFor: 1, status: true },
+    { tag: 'Next.js',          alias: 'nextjs',           tagFor: 1, status: true },
+    { tag: 'Vue.js',           alias: 'vuejs',            tagFor: 1, status: true },
     { tag: 'Node.js',          alias: 'nodejs',           tagFor: 1, status: true },
+    { tag: 'Express.js',       alias: 'expressjs',        tagFor: 1, status: true },
     { tag: 'MongoDB',          alias: 'mongodb',          tagFor: 1, status: true },
+    { tag: 'PostgreSQL',       alias: 'postgresql',       tagFor: 1, status: true },
+    { tag: 'MySQL',            alias: 'mysql',            tagFor: 1, status: true },
+    { tag: 'Redis',            alias: 'redis',            tagFor: 1, status: true },
     { tag: 'AWS',              alias: 'aws',              tagFor: 1, status: true },
+    { tag: 'Google Cloud',     alias: 'google-cloud',     tagFor: 1, status: true },
+    { tag: 'Azure',            alias: 'azure',            tagFor: 1, status: true },
     { tag: 'Docker',           alias: 'docker',           tagFor: 1, status: true },
     { tag: 'Kubernetes',       alias: 'kubernetes',       tagFor: 1, status: true },
-    { tag: 'TypeScript',       alias: 'typescript',       tagFor: 1, status: true },
+    { tag: 'Terraform',        alias: 'terraform',        tagFor: 1, status: true },
+    { tag: 'GraphQL',          alias: 'graphql',          tagFor: 1, status: true },
+    { tag: 'REST API',         alias: 'rest-api',         tagFor: 1, status: true },
     { tag: 'React Native',     alias: 'react-native',     tagFor: 1, status: true },
+    { tag: 'Flutter',          alias: 'flutter',          tagFor: 1, status: true },
+    // Soft/misc skills (tagFor: 2 = resume)
     { tag: 'Machine Learning', alias: 'machine-learning', tagFor: 2, status: true },
+    { tag: 'Deep Learning',    alias: 'deep-learning',    tagFor: 2, status: true },
     { tag: 'Data Analysis',    alias: 'data-analysis',    tagFor: 2, status: true },
     { tag: 'SQL',              alias: 'sql',              tagFor: 2, status: true },
     { tag: 'Figma',            alias: 'figma',            tagFor: 2, status: true },
+    { tag: 'Adobe XD',         alias: 'adobe-xd',         tagFor: 2, status: true },
     { tag: 'Leadership',       alias: 'leadership',       tagFor: 2, status: true },
-    { tag: 'Agile',            alias: 'agile',            tagFor: 2, status: true },
+    { tag: 'Agile / Scrum',    alias: 'agile-scrum',      tagFor: 2, status: true },
     { tag: 'Communication',    alias: 'communication',    tagFor: 2, status: true },
-    { tag: 'GraphQL',          alias: 'graphql',          tagFor: 1, status: true },
+    { tag: 'Problem Solving',  alias: 'problem-solving',  tagFor: 2, status: true },
+    { tag: 'Google Ads',       alias: 'google-ads',       tagFor: 2, status: true },
+    { tag: 'SEO',              alias: 'seo',              tagFor: 2, status: true },
   ]);
   logger.info('✅ Tags seeded');
 
   // ═════════════════════════════════════════════════════════════════════════════
   // 9 · PACKAGES
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(Package);
   const packages = await Package.insertMany([
+    // Jobseeker packages
     {
       title: 'Jobseeker Free', isFree: true, price: 0,
       packageTime: 9999, packageTimeUnit: 'days',
-      resume: 1, jobApply: 5, jobAlert: 1, coverletter: 1,
+      resume: 1, jobApply: 10, jobAlert: 1, coverletter: 1,
       packageFor: 'jobseeker', status: true,
     },
     {
@@ -238,15 +290,16 @@ const seed = async () => {
       discount: 10, discountType: 'percent',
       packageFor: 'jobseeker', status: true,
     },
+    // Employer packages
     {
       title: 'Employer Free', isFree: true, price: 0,
       packageTime: 9999, packageTimeUnit: 'days',
-      job: 1, companies: 1, resumeSearch: 5,
+      job: 1, companies: 1, resumeSearch: 10,
       jobTime: 15, jobTimeUnit: 'days',
       packageFor: 'employer', status: true,
     },
     {
-      title: 'Employer Basic', price: 999,
+      title: 'Employer Starter', price: 999,
       packageTime: 30, packageTimeUnit: 'days',
       job: 10, featuredJob: 1, companies: 1, department: 3,
       resumeSearch: 50, jobTime: 30, jobTimeUnit: 'days',
@@ -254,7 +307,7 @@ const seed = async () => {
       packageFor: 'employer', status: true,
     },
     {
-      title: 'Employer Pro', price: 2999,
+      title: 'Employer Growth', price: 2999,
       packageTime: 30, packageTimeUnit: 'days',
       job: 50, featuredJob: 5, companies: 1, department: 10,
       resumeSearch: 999, featuredCompany: 1,
@@ -278,421 +331,623 @@ const seed = async () => {
   logger.info(`✅ ${packages.length} packages`);
 
   // ═════════════════════════════════════════════════════════════════════════════
-  // 10 · USERS
+  // 10 · SETTINGS (Bank Details)
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(User, RefreshToken);
-  const hashedPw = await bcrypt.hash('Pass@123456', 12);
+  await Setting.create({
+    key: 'bank_details',
+    value: {
+      bankName: 'HDFC Bank Ltd',
+      accountName: 'HireHub Technologies Pvt Ltd',
+      accountNumber: '50200099887766',
+      ifsc: 'HDFC0001234',
+      branch: 'Koramangala, Bengaluru',
+      upiId: 'hirehub@hdfcbank',
+    },
+  });
+  logger.info('✅ Bank details setting saved');
 
-  const [admin, emp1, js1, emp2, js2] = await User.insertMany([
+  // ═════════════════════════════════════════════════════════════════════════════
+  // 11 · USERS  (1 superadmin + 1 admin + 1 employer + 1 jobseeker)
+  // ═════════════════════════════════════════════════════════════════════════════
+  const hashedPw = await bcrypt.hash('Pass@123456', 12);
+  const n = Date.now();
+
+  const [superAdmin, admin, employer, jobseeker] = await User.insertMany([
+    // ── SUPERADMIN ────────────────────────────────────────────────────────────
     {
-      firstName: 'Arjun', lastName: 'Sharma',
+      firstName: 'Rohan', lastName: 'Kapoor',
+      email: 'superadmin@hirehub.io', password: hashedPw,
+      phone: '+91-9800000000', role: 'superadmin',
+      status: 'active', isVerified: true, isEmailVerified: true, profileCompleted: 100,
+      avatar: {
+        publicId: 'avatars/superadmin',
+        secureUrl: 'https://ui-avatars.com/api/?name=Rohan+Kapoor&background=1e1b4b&color=fff&size=200&bold=true',
+        resourceType: 'image',
+      },
+      headline: 'Platform Superadmin — HireHub Technologies',
+      bio: 'Overseeing entire platform operations, infrastructure, and compliance for HireHub.',
+      gender: 'male',
+      currentCity: 'Bengaluru',
+      lastLogin: new Date(), lastActive: new Date(), loginCount: 102,
+      notificationSettings: { emailOnApplication: true, emailOnMessage: true, emailOnJobAlert: false, emailOnPackageExpiry: true, pushNotifications: true, smsNotifications: false },
+    },
+    // ── ADMIN ─────────────────────────────────────────────────────────────────
+    {
+      firstName: 'Kavya', lastName: 'Sharma',
       email: 'admin@hirehub.io', password: hashedPw,
       phone: '+91-9800000001', role: 'admin',
       status: 'active', isVerified: true, isEmailVerified: true, profileCompleted: 100,
-      avatar: { publicId: 'avatars/admin', secureUrl: 'https://ui-avatars.com/api/?name=Arjun+Sharma&background=6366f1&color=fff&size=200', resourceType: 'image' },
-      lastLogin: new Date(), lastActive: new Date(), loginCount: 45,
+      avatar: {
+        publicId: 'avatars/admin',
+        secureUrl: 'https://ui-avatars.com/api/?name=Kavya+Sharma&background=6366f1&color=fff&size=200&bold=true',
+        resourceType: 'image',
+      },
+      headline: 'Platform Administrator — HireHub',
+      bio: 'Managing job postings, employer verifications, and user moderation across HireHub.',
+      gender: 'female',
+      currentCity: 'New Delhi',
+      lastLogin: new Date(n - 3600000), lastActive: new Date(), loginCount: 58,
       notificationSettings: { emailOnApplication: true, emailOnMessage: true, emailOnJobAlert: false, emailOnPackageExpiry: true, pushNotifications: true, smsNotifications: false },
     },
+    // ── EMPLOYER ─────────────────────────────────────────────────────────────
     {
-      firstName: 'Priya', lastName: 'Mehta',
+      firstName: 'Arjun', lastName: 'Mehta',
       email: 'employer@hirehub.io', password: hashedPw,
       phone: '+91-9800000002', role: 'employer',
-      status: 'active', isVerified: true, isEmailVerified: true, profileCompleted: 92,
-      avatar: { publicId: 'avatars/emp1', secureUrl: 'https://ui-avatars.com/api/?name=Priya+Mehta&background=10b981&color=fff&size=200', resourceType: 'image' },
-      lastLogin: new Date(Date.now() - 7200000), lastActive: new Date(), loginCount: 22,
-      socialLinks: { linkedin: 'https://linkedin.com/in/priyamehta', website: 'https://techcorp.io', github: '', twitter: '', facebook: '' },
+      status: 'active', isVerified: true, isEmailVerified: true, profileCompleted: 96,
+      avatar: {
+        publicId: 'avatars/employer',
+        secureUrl: 'https://ui-avatars.com/api/?name=Arjun+Mehta&background=0ea5e9&color=fff&size=200&bold=true',
+        resourceType: 'image',
+      },
+      headline: 'Head of Talent Acquisition — NexaCloud India',
+      bio: 'Passionate about building high-performing engineering teams. Hiring top tech talent across India for NexaCloud\'s product and platform divisions.',
+      gender: 'male',
+      currentCity: 'Bengaluru',
+      socialLinks: {
+        linkedin: 'https://linkedin.com/in/arjunmehta-ta',
+        website:  'https://nexacloud.in',
+        github:   '',
+        twitter:  'https://twitter.com/arjunmehta_hr',
+        facebook: '',
+      },
+      lastLogin: new Date(n - 7200000), lastActive: new Date(), loginCount: 31,
       notificationSettings: { emailOnApplication: true, emailOnMessage: true, emailOnJobAlert: false, emailOnPackageExpiry: true, pushNotifications: true, smsNotifications: false },
     },
+    // ── JOBSEEKER ────────────────────────────────────────────────────────────
     {
-      firstName: 'Rahul', lastName: 'Verma',
+      firstName: 'Priya', lastName: 'Nair',
       email: 'jobseeker@hirehub.io', password: hashedPw,
       phone: '+91-9800000003', role: 'jobseeker',
-      status: 'active', isVerified: true, isEmailVerified: true, profileCompleted: 88,
-      avatar: { publicId: 'avatars/js1', secureUrl: 'https://ui-avatars.com/api/?name=Rahul+Verma&background=f59e0b&color=fff&size=200', resourceType: 'image' },
-      lastLogin: new Date(Date.now() - 3600000), lastActive: new Date(), loginCount: 18,
-      socialLinks: { linkedin: 'https://linkedin.com/in/rahulverma', github: 'https://github.com/rahulverma', twitter: '', facebook: '', website: '' },
-      notificationSettings: { emailOnApplication: true, emailOnMessage: true, emailOnJobAlert: true, emailOnPackageExpiry: true, pushNotifications: true, smsNotifications: false },
-    },
-    {
-      firstName: 'Vikram', lastName: 'Singh',
-      email: 'vikram.employer@hirehub.io', password: hashedPw,
-      phone: '+91-9800000004', role: 'employer',
-      status: 'active', isVerified: true, isEmailVerified: true, profileCompleted: 78,
-      avatar: { publicId: 'avatars/emp2', secureUrl: 'https://ui-avatars.com/api/?name=Vikram+Singh&background=3b82f6&color=fff&size=200', resourceType: 'image' },
-      lastLogin: new Date(Date.now() - 86400000), lastActive: new Date(), loginCount: 10,
-      socialLinks: { linkedin: '', github: '', twitter: '', facebook: '', website: '' },
-      notificationSettings: { emailOnApplication: true, emailOnMessage: true, emailOnJobAlert: false, emailOnPackageExpiry: true, pushNotifications: true, smsNotifications: false },
-    },
-    {
-      firstName: 'Sneha', lastName: 'Kapoor',
-      email: 'sneha.jobseeker@hirehub.io', password: hashedPw,
-      phone: '+91-9800000005', role: 'jobseeker',
-      status: 'active', isVerified: true, isEmailVerified: true, profileCompleted: 72,
-      avatar: { publicId: 'avatars/js2', secureUrl: 'https://ui-avatars.com/api/?name=Sneha+Kapoor&background=ec4899&color=fff&size=200', resourceType: 'image' },
-      lastLogin: new Date(Date.now() - 10800000), lastActive: new Date(), loginCount: 7,
-      socialLinks: { linkedin: 'https://linkedin.com/in/snehakapoor', github: '', twitter: '', facebook: '', website: '' },
+      status: 'active', isVerified: true, isEmailVerified: true, profileCompleted: 91,
+      avatar: {
+        publicId: 'avatars/jobseeker',
+        secureUrl: 'https://ui-avatars.com/api/?name=Priya+Nair&background=f59e0b&color=fff&size=200&bold=true',
+        resourceType: 'image',
+      },
+      headline: 'Senior Full Stack Developer | React · Node.js · AWS',
+      bio: '5+ years building scalable web apps. Passionate about clean architecture and great user experiences. Currently open to Senior SDE / Tech Lead roles in Bengaluru or remote.',
+      gender: 'female',
+      nationality: 'Indian',
+      currentCity: 'Bengaluru',
+      address: 'Flat 204, Prestige Lakeside Habitat, Varthur, Bengaluru – 560087',
+      totalExperience: '5 years 3 months',
+      expectedSalary: '₹30–40 LPA',
+      noticePeriod: '30 days',
+      skills: ['React.js', 'Node.js', 'TypeScript', 'MongoDB', 'AWS', 'Docker', 'GraphQL', 'PostgreSQL', 'Redis', 'Next.js'],
+      jobPreferences: {
+        locations: ['Bengaluru', 'Remote', 'Hyderabad'],
+        workplaceType: 'hybrid',
+        salaryMin: 2500000,
+        salaryMax: 4000000,
+      },
+      socialLinks: {
+        linkedin: 'https://linkedin.com/in/priyanair-dev',
+        github:   'https://github.com/priya-nair-dev',
+        twitter:  'https://twitter.com/priyanair_codes',
+        facebook: '',
+        website:  'https://priyanair.dev',
+      },
+      lastLogin: new Date(n - 1800000), lastActive: new Date(), loginCount: 24,
       notificationSettings: { emailOnApplication: true, emailOnMessage: true, emailOnJobAlert: true, emailOnPackageExpiry: true, pushNotifications: true, smsNotifications: false },
     },
   ], { ordered: true });
-  logger.info('✅ 5 users (admin · 2 employers · 2 jobseekers) | password: Pass@123456');
+
+  logger.info('✅ 4 users — superadmin · admin · employer · jobseeker | password: Pass@123456');
 
   // ═════════════════════════════════════════════════════════════════════════════
-  // 11 · USER PACKAGES + INVOICES + TRANSACTION LOGS
+  // 12 · USER PACKAGES + INVOICES + TRANSACTION LOGS
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(UserPackage, Invoice, TransactionLog, Subscription);
-  const n = Date.now();
+  const pkgGrowth  = packages.find(p => p.title === 'Employer Growth');
+  const pkgPremJs  = packages.find(p => p.title === 'Jobseeker Premium');
 
-  const pkgPro      = packages.find(p => p.title === 'Employer Pro');
-  const pkgBasicEmp = packages.find(p => p.title === 'Employer Basic');
-  const pkgPremJs   = packages.find(p => p.title === 'Jobseeker Premium');
-  const pkgFreeJs   = packages.find(p => p.title === 'Jobseeker Free');
-
-  const [up1, up2, up3, up4] = await UserPackage.insertMany([
+  const [upEmployer, upJobseeker] = await UserPackage.insertMany([
     {
-      uid: emp1._id, packageId: pkgPro._id,
-      endDate: new Date(n + 60 * 86400000), status: true, isActive: true,
-      remainingJobs: 47, remainingFeaturedJobs: 4, remainingCompanies: 1,
-      remainingResumeSearch: 976,
+      uid: employer._id, packageId: pkgGrowth._id,
+      endDate: new Date(n + 55 * 86400000), status: true, isActive: true,
+      remainingJobs: 43, remainingFeaturedJobs: 4, remainingCompanies: 1,
+      remainingResumeSearch: 912,
     },
     {
-      uid: js1._id, packageId: pkgPremJs._id,
-      endDate: new Date(n + 90 * 86400000), status: true, isActive: true,
+      uid: jobseeker._id, packageId: pkgPremJs._id,
+      endDate: new Date(n + 72 * 86400000), status: true, isActive: true,
       remainingResumes: 18, remainingFeaturedResumes: 2,
-      remainingJobApply: 964, remainingJobAlerts: 18,
-    },
-    {
-      uid: emp2._id, packageId: pkgBasicEmp._id,
-      endDate: new Date(n + 15 * 86400000), status: true, isActive: true,
-      remainingJobs: 7, remainingFeaturedJobs: 1, remainingCompanies: 1,
-      remainingResumeSearch: 43,
-    },
-    {
-      uid: js2._id, packageId: pkgFreeJs._id,
-      endDate: new Date(n + 9999 * 86400000), status: true, isActive: true,
-      remainingResumes: 1, remainingJobApply: 3, remainingJobAlerts: 1,
+      remainingJobApply: 956, remainingJobAlerts: 17,
     },
   ]);
 
-  const [inv1, inv2, inv3] = await Invoice.insertMany([
+  const [inv1, inv2] = await Invoice.insertMany([
     {
-      uid: emp1._id, recordId: up1._id,
-      description: 'Employer Pro – 30 Days',
+      uid: employer._id, recordId: upEmployer._id,
+      description: 'Employer Growth – 30 Days',
       type: 'package', currencyId: currencies[0]._id, amount: 2999,
       payMethod: 'stripe', paymentStatus: 'paid',
-      transactionId: 'ch_3EmpPro' + n,
-      paidAt: new Date(n - 5 * 86400000),
-      payerName: 'Priya Mehta', payerEmail: 'employer@hirehub.io',
+      transactionId: 'ch_3EmpGrowth' + n,
+      paidAt: new Date(n - 4 * 86400000),
+      payerName: 'Arjun Mehta', payerEmail: 'employer@hirehub.io',
       status: true,
     },
     {
-      uid: js1._id, recordId: up2._id,
+      uid: jobseeker._id, recordId: upJobseeker._id,
       description: 'Jobseeker Premium – 90 Days',
       type: 'package', currencyId: currencies[0]._id, amount: 799,
       payMethod: 'stripe', paymentStatus: 'paid',
       transactionId: 'ch_3JsPrem' + n,
-      paidAt: new Date(n - 3 * 86400000),
-      payerName: 'Rahul Verma', payerEmail: 'jobseeker@hirehub.io',
-      status: true,
-    },
-    {
-      uid: emp2._id, recordId: up3._id,
-      description: 'Employer Basic – 30 Days',
-      type: 'package', currencyId: currencies[0]._id, amount: 999,
-      payMethod: 'bank', paymentStatus: 'paid',
-      transactionId: 'BANK' + n,
-      paidAt: new Date(n - 15 * 86400000),
-      payerName: 'Vikram Singh', payerEmail: 'vikram.employer@hirehub.io',
-      payerTransactionNumber: 'NEFT20241101001',
+      paidAt: new Date(n - 2 * 86400000),
+      payerName: 'Priya Nair', payerEmail: 'jobseeker@hirehub.io',
       status: true,
     },
   ]);
 
   await TransactionLog.insertMany([
-    { uid: emp1._id, userPackageId: up1._id, recordId: inv1._id, type: 'package_purchase', status: true },
-    { uid: js1._id,  userPackageId: up2._id, recordId: inv2._id, type: 'package_purchase', status: true },
-    { uid: emp2._id, userPackageId: up3._id, recordId: inv3._id, type: 'package_purchase', status: true },
+    { uid: employer._id,   userPackageId: upEmployer._id,   recordId: inv1._id, type: 'package_purchase', status: true },
+    { uid: jobseeker._id,  userPackageId: upJobseeker._id,  recordId: inv2._id, type: 'package_purchase', status: true },
   ]);
   logger.info('✅ User packages · invoices · transaction logs');
 
   // ═════════════════════════════════════════════════════════════════════════════
-  // 12 · COMPANIES
+  // 13 · COMPANY
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(Company);
-  const [co1, co2] = await Company.insertMany([
+  const [company] = await Company.insertMany([
     {
-      uid: emp1._id, name: 'TechCorp Solutions Pvt Ltd',
-      slug: 'techcorp-solutions',
-      url: 'https://techcorp.io', contactEmail: 'hr@techcorp.io',
-      tagline: 'Building the Future, One Line at a Time',
-      description: '<p>TechCorp Solutions is a leading software product company headquartered in Bangalore. Founded in 2015, we specialise in cloud-native SaaS, enterprise integrations, and AI-driven analytics. Our 500+ engineers serve Fortune 500 clients globally.</p>',
-      phone: '+91-80-40001234',
-      city: 'Bangalore', address1: '4th Floor, Tower B, Embassy Tech Village',
-      address2: 'Outer Ring Road, Devarabisanahalli', cities: [cities[2]._id],
-      logo: { publicId: 'companies/tc/logo', secureUrl: 'https://ui-avatars.com/api/?name=TC&background=6366f1&color=fff&size=200&bold=true', resourceType: 'image', fileSize: 45000 },
-      smallLogo: { publicId: 'companies/tc/small', secureUrl: 'https://ui-avatars.com/api/?name=TC&background=6366f1&color=fff&size=80&bold=true' },
+      uid: employer._id,
+      name: 'NexaCloud India Pvt Ltd',
+      slug: 'nexacloud-india',
+      url: 'https://nexacloud.in',
+      contactEmail: 'careers@nexacloud.in',
+      tagline: 'Cloud. Scale. Simplify.',
+      description: `<p><strong>NexaCloud India</strong> is a fast-growing cloud infrastructure and SaaS company headquartered in Bengaluru's thriving tech corridor. Founded in 2018, we help enterprises modernise their IT stack with cloud-native solutions — from Kubernetes-based microservices platforms to AI-powered analytics dashboards.</p>
+<p>We are backed by Sequoia India and are currently Series B with a team of 600+ across Bengaluru, Hyderabad, and Singapore. Our clients include 3 Fortune 500 companies, 50+ Indian unicorns, and 200+ mid-market enterprises across APAC.</p>
+<h3>Why NexaCloud?</h3>
+<ul>
+  <li>💰 Top-quartile compensation + ESOPs</li>
+  <li>🚀 Work on products used by 2 million+ end users</li>
+  <li>🧠 Strong engineering culture — weekly tech talks, open-source contributions</li>
+  <li>🏡 Flexible hybrid model (2 days WFH)</li>
+  <li>📚 ₹50,000/year learning & certification budget</li>
+  <li>🍱 Free catered lunches, gym membership, wellness allowance</li>
+</ul>`,
+      phone: '+91-80-46001234',
+      city: 'Bengaluru',
+      address1: '3rd Floor, Wing A, Prestige Tech Park',
+      address2: 'Outer Ring Road, Marathahalli, Bengaluru – 560103',
+      cities: [cities[2]._id, cities[8]._id],
+      logo: {
+        publicId: 'companies/nexacloud/logo',
+        secureUrl: 'https://ui-avatars.com/api/?name=NC&background=0ea5e9&color=fff&size=200&bold=true',
+        resourceType: 'image',
+        fileSize: 52000,
+      },
+      smallLogo: {
+        publicId: 'companies/nexacloud/small',
+        secureUrl: 'https://ui-avatars.com/api/?name=NC&background=0ea5e9&color=fff&size=80&bold=true',
+      },
       isVerified: true, verificationStatus: 'approved',
       status: 1, isGoldCompany: true,
-      startGoldDate: new Date(n - 30 * 86400000), endGoldDate: new Date(n + 60 * 86400000),
+      startGoldDate: new Date(n - 20 * 86400000), endGoldDate: new Date(n + 70 * 86400000),
       isFeaturedCompany: true,
-      startFeaturedDate: new Date(n - 10 * 86400000), endFeaturedDate: new Date(n + 20 * 86400000),
-      socialLinks: { linkedin: 'https://linkedin.com/company/techcorp-solutions', twitter: 'https://twitter.com/techcorpio', website: 'https://techcorp.io', facebook: 'https://facebook.com/techcorpio', youtube: '', instagram: '' },
+      startFeaturedDate: new Date(n - 5 * 86400000), endFeaturedDate: new Date(n + 25 * 86400000),
+      socialLinks: {
+        linkedin:  'https://linkedin.com/company/nexacloud-india',
+        twitter:   'https://twitter.com/nexacloud_in',
+        website:   'https://nexacloud.in',
+        facebook:  'https://facebook.com/nexacloudindia',
+        youtube:   'https://youtube.com/@nexacloud',
+        instagram: 'https://instagram.com/nexacloud_in',
+      },
       gallery: [
-        { publicId: 'co/tc/g1', secureUrl: 'https://picsum.photos/seed/tc1/800/400', caption: 'Bangalore HQ', uploadedAt: new Date() },
-        { publicId: 'co/tc/g2', secureUrl: 'https://picsum.photos/seed/tc2/800/400', caption: 'Team Offsite 2024', uploadedAt: new Date() },
-        { publicId: 'co/tc/g3', secureUrl: 'https://picsum.photos/seed/tc3/800/400', caption: 'Hackathon Champions', uploadedAt: new Date() },
+        { publicId: 'co/nc/g1', secureUrl: 'https://picsum.photos/seed/nc_office/800/450',    caption: 'Bengaluru HQ – Open Office', uploadedAt: new Date() },
+        { publicId: 'co/nc/g2', secureUrl: 'https://picsum.photos/seed/nc_team/800/450',      caption: 'Engineering All-Hands Q3 2024', uploadedAt: new Date() },
+        { publicId: 'co/nc/g3', secureUrl: 'https://picsum.photos/seed/nc_hack/800/450',      caption: 'HackNova 2024 Winners', uploadedAt: new Date() },
+        { publicId: 'co/nc/g4', secureUrl: 'https://picsum.photos/seed/nc_offsite/800/450',   caption: 'Annual Team Offsite — Coorg', uploadedAt: new Date() },
+        { publicId: 'co/nc/g5', secureUrl: 'https://picsum.photos/seed/nc_awards/800/450',    caption: 'Deloitte Tech Fast 50 Award 2023', uploadedAt: new Date() },
       ],
-      metaDescription: 'TechCorp Solutions – Leading software company hiring top engineers in Bangalore.',
-      metaKeywords: 'software jobs, bangalore, react, nodejs, aws, typescript',
-      hits: 1840, followersCount: 347, jobsCount: 7,
-      userpackageId: up1._id, serverid: 0,
-    },
-    {
-      uid: emp2._id, name: 'InnovateMind Digital',
-      slug: 'innovatemind-digital',
-      url: 'https://innovatemind.in', contactEmail: 'careers@innovatemind.in',
-      tagline: 'Digital Transformation. Reimagined.',
-      description: '<p>InnovateMind Digital is a full-service digital agency based in Mumbai specialising in e-commerce platforms, performance marketing, and mobile apps. 200+ successful projects delivered.</p>',
-      phone: '+91-22-40005678',
-      city: 'Mumbai', address1: 'Unit 301, Sunshine Business Park',
-      address2: 'Andheri East, Mumbai', cities: [cities[0]._id],
-      logo: { publicId: 'companies/im/logo', secureUrl: 'https://ui-avatars.com/api/?name=IM&background=10b981&color=fff&size=200&bold=true', resourceType: 'image', fileSize: 38000 },
-      smallLogo: { publicId: 'companies/im/small', secureUrl: 'https://ui-avatars.com/api/?name=IM&background=10b981&color=fff&size=80&bold=true' },
-      isVerified: true, verificationStatus: 'approved',
-      status: 1, isGoldCompany: false, isFeaturedCompany: false,
-      socialLinks: { linkedin: 'https://linkedin.com/company/innovatemind', website: 'https://innovatemind.in', twitter: '', facebook: '', youtube: '', instagram: '' },
-      gallery: [
-        { publicId: 'co/im/g1', secureUrl: 'https://picsum.photos/seed/im1/800/400', caption: 'Mumbai Office', uploadedAt: new Date() },
-      ],
-      metaDescription: 'InnovateMind Digital – Hiring designers & developers in Mumbai.',
-      hits: 480, followersCount: 92, jobsCount: 3,
-      userpackageId: up3._id, serverid: 0,
+      metaDescription: 'NexaCloud India – Cloud infrastructure & SaaS company hiring engineers in Bengaluru and Hyderabad.',
+      metaKeywords: 'cloud jobs bangalore, devops engineer, full stack developer, react nodejs, aws kubernetes',
+      hits: 2840, followersCount: 512, jobsCount: 8,
+      userpackageId: upEmployer._id, serverid: 0,
     },
   ]);
-  logger.info('✅ 2 companies');
+  logger.info('✅ 1 company (NexaCloud India)');
 
   // ═════════════════════════════════════════════════════════════════════════════
-  // 13 · DEPARTMENTS
+  // 14 · DEPARTMENTS
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(Department);
   const depts = await Department.insertMany([
-    { uid: emp1._id, companyId: co1._id, name: 'Engineering',     alias: 'engineering', description: 'Product & platform engineering', status: true },
-    { uid: emp1._id, companyId: co1._id, name: 'Product',         alias: 'product',     description: 'Product management & strategy',  status: true },
-    { uid: emp1._id, companyId: co1._id, name: 'Design',          alias: 'design',      description: 'UI/UX & brand design',            status: true },
-    { uid: emp1._id, companyId: co1._id, name: 'Marketing',       alias: 'marketing',   description: 'Growth & content marketing',      status: true },
-    { uid: emp1._id, companyId: co1._id, name: 'Human Resources', alias: 'hr',          description: 'Talent & people ops',             status: true },
-    { uid: emp1._id, companyId: co1._id, name: 'Finance',         alias: 'finance',     description: 'Finance, accounts & legal',       status: true },
-    { uid: emp2._id, companyId: co2._id, name: 'Development',     alias: 'dev',         description: 'Web & mobile development',        status: true },
-    { uid: emp2._id, companyId: co2._id, name: 'Creative',        alias: 'creative',    description: 'Design & creative team',          status: true },
+    { uid: employer._id, companyId: company._id, name: 'Platform Engineering',   alias: 'platform-engineering',  description: 'Core infrastructure, backend services, and platform reliability', status: true },
+    { uid: employer._id, companyId: company._id, name: 'Product Engineering',    alias: 'product-engineering',   description: 'Customer-facing product features and mobile apps', status: true },
+    { uid: employer._id, companyId: company._id, name: 'Data & AI',              alias: 'data-ai',               description: 'ML, AI, analytics, and data platform', status: true },
+    { uid: employer._id, companyId: company._id, name: 'DevOps & SRE',           alias: 'devops-sre',            description: 'Cloud infrastructure, CI/CD, observability', status: true },
+    { uid: employer._id, companyId: company._id, name: 'Design & Research',      alias: 'design-research',       description: 'Product design, UX research, design systems', status: true },
+    { uid: employer._id, companyId: company._id, name: 'Product Management',     alias: 'product-management',    description: 'Product strategy, roadmaps, OKRs', status: true },
+    { uid: employer._id, companyId: company._id, name: 'Marketing & Growth',     alias: 'marketing-growth',      description: 'Performance, brand, content, and growth marketing', status: true },
+    { uid: employer._id, companyId: company._id, name: 'Human Resources',        alias: 'human-resources',       description: 'Talent acquisition, people ops, employee experience', status: true },
+    { uid: employer._id, companyId: company._id, name: 'Finance & Legal',        alias: 'finance-legal',         description: 'Finance, accounts, compliance, and legal', status: true },
+    { uid: employer._id, companyId: company._id, name: 'Customer Success',       alias: 'customer-success',      description: 'Enterprise onboarding, support, and retention', status: true },
   ]);
   logger.info(`✅ ${depts.length} departments`);
 
   // ═════════════════════════════════════════════════════════════════════════════
-  // 14 · JOBS
+  // 15 · JOBS  (mix of approved, 1 pending, 1 draft — all realistic)
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(Job);
   const itCat     = parentCats[0]._id;
   const mktCat    = parentCats[1]._id;
   const hrCat     = parentCats[3]._id;
   const designCat = parentCats[7]._id;
   const ftType    = jobTypes[0]._id;
-  const ptType    = jobTypes[1]._id;
+  const inType    = jobTypes[3]._id;
+  const remType   = jobTypes[5]._id;
 
   const jobs = await Job.insertMany([
-    // ── TechCorp ─────────────────────────────────────────────────
+
+    // ── JOB 1: Senior Full Stack Developer ───────────────────────────────────
     {
-      uid: emp1._id, companyId: co1._id,
+      uid: employer._id, companyId: company._id,
       title: 'Senior Full Stack Developer (React + Node.js)',
-      slug: 'senior-full-stack-developer-react-nodejs-tc',
+      slug: 'senior-full-stack-developer-react-nodejs-nexacloud',
       categoryId: itCat, jobType: ftType,
-      careerLevel: careerLevels[2]._id, educationId: educations[2]._id,
-      departmentId: depts[0]._id,
-      tags: ['JavaScript', 'React', 'Node.js', 'MongoDB', 'AWS', 'TypeScript'],
+      careerLevel: careerLevels[3]._id, educationId: educations[2]._id,
+      departmentId: depts[1]._id,
+      tags: ['React.js', 'Node.js', 'TypeScript', 'MongoDB', 'AWS', 'GraphQL', 'Docker'],
       status: 'approved',
-      description: '<h3>About the Role</h3><p>Join our core product team as a Senior Full Stack Developer. Own features end-to-end on a platform used by 1M+ users.</p><h3>Responsibilities</h3><ul><li>Ship new product features in React + Node.js</li><li>Review code and mentor junior engineers</li><li>Architect scalable backend services on AWS</li><li>Drive CI/CD and test coverage improvements</li></ul><h3>Stack</h3><p>React 18, TypeScript, Node.js 20, MongoDB Atlas, Redis, Docker, AWS (ECS · S3 · Lambda)</p>',
-      qualifications: 'B.Tech in Computer Science or related. 4+ years full-stack experience.',
-      prefferdSkills: 'React, TypeScript, Node.js, MongoDB, AWS, Docker, GraphQL, Jest',
-      city: 'Bangalore', address1: 'Embassy Tech Village', latitude: '12.9716', longitude: '77.5946',
+      description: `<h3>About the Role</h3>
+<p>We are looking for a <strong>Senior Full Stack Developer</strong> to join NexaCloud's Product Engineering squad. You will own end-to-end delivery of features on our flagship SaaS platform — from crafting pixel-perfect React UIs to designing robust Node.js microservices that process millions of events daily.</p>
+
+<h3>What You'll Do</h3>
+<ul>
+  <li>Lead full-stack feature delivery from design handoff → code review → production deployment</li>
+  <li>Design and implement RESTful & GraphQL APIs consumed by web and mobile clients</li>
+  <li>Drive performance optimisations — reducing API p99 latency, improving Core Web Vitals</li>
+  <li>Mentor 2–3 junior/mid engineers and participate in technical hiring</li>
+  <li>Collaborate closely with Product Managers, Designers, and SRE on architecture decisions</li>
+  <li>Write thorough unit, integration, and E2E test coverage (Jest + Cypress)</li>
+</ul>
+
+<h3>Tech Stack</h3>
+<p>React 18, Next.js 14, TypeScript, Node.js 20, Express, MongoDB Atlas, Redis, GraphQL (Apollo), AWS (ECS · Lambda · S3 · SQS), Docker, GitHub Actions</p>
+
+<h3>Why This Role?</h3>
+<p>You will be joining the team at an inflection point — we are scaling from 500K to 2M active users. Real ownership, real impact.</p>`,
+      qualifications: 'B.Tech / B.E in Computer Science or equivalent. 4–7 years of full-stack development experience with React and Node.js.',
+      prefferdSkills: 'React.js, Next.js, TypeScript, Node.js, Express.js, MongoDB, Redis, GraphQL, AWS, Docker, Jest, Cypress, Git',
+      city: 'Bengaluru', address1: 'Prestige Tech Park, Marathahalli',
+      latitude: '12.9556', longitude: '77.7011',
       cities: [cities[2]._id], workplaceType: 'hybrid',
-      contactEmail: 'jobs@techcorp.io', showContact: false,
-      hideSalaryRange: false, salaryType: salaryTypes[0]._id,
-      salaryMin: 180000, salaryMax: 280000, currency: 'INR',
-      experience: 4, noOfJobs: 2,
+      contactEmail: 'careers@nexacloud.in', showContact: false,
+      hideSalaryRange: false, salaryType: salaryTypes[1]._id,
+      salaryMin: 1800000, salaryMax: 3200000, currency: 'INR',
+      experience: 4, noOfJobs: 3,
       expiresAt: new Date(n + 30 * 86400000),
       isGoldJob: true, startGoldDate: new Date(), endGoldDate: new Date(n + 30 * 86400000),
       isFeaturedJob: true, startFeaturedDate: new Date(), endFeaturedDate: new Date(n + 14 * 86400000),
       isUrgent: true, urgentUntil: new Date(n + 7 * 86400000),
-      viewsCount: 412, applicationsCount: 14,
-      userpackageId: up1._id,
-      aiJobSearchText: 'senior full stack developer react nodejs typescript mongodb aws docker bangalore hybrid',
-      metaDescription: 'TechCorp hiring Senior Full Stack Developer – React, Node.js, hybrid Bangalore.',
+      viewsCount: 1248, applicationsCount: 32,
+      userpackageId: upEmployer._id,
+      aiJobSearchText: 'senior full stack developer react nodejs typescript mongodb aws graphql docker bengaluru hybrid 4 years',
+      metaDescription: 'NexaCloud India hiring Senior Full Stack Developer (React + Node.js) in Bengaluru – 18–32 LPA, hybrid.',
+      metaKeywords: 'full stack developer react nodejs bengaluru, senior sde jobs bangalore, react typescript job',
     },
+
+    // ── JOB 2: DevOps / SRE Engineer ─────────────────────────────────────────
     {
-      uid: emp1._id, companyId: co1._id,
-      title: 'DevOps Engineer – AWS & Kubernetes',
-      slug: 'devops-engineer-aws-kubernetes-tc',
+      uid: employer._id, companyId: company._id,
+      title: 'DevOps / SRE Engineer – AWS & Kubernetes',
+      slug: 'devops-sre-engineer-aws-kubernetes-nexacloud',
       categoryId: itCat, jobType: ftType,
-      careerLevel: careerLevels[2]._id, educationId: educations[2]._id,
-      departmentId: depts[0]._id,
-      tags: ['AWS', 'Kubernetes', 'Docker', 'Terraform', 'CI/CD'],
+      careerLevel: careerLevels[3]._id, educationId: educations[2]._id,
+      departmentId: depts[3]._id,
+      tags: ['AWS', 'Kubernetes', 'Terraform', 'Docker', 'GitHub Actions', 'Python', 'Golang'],
       status: 'approved',
-      description: '<p>Own and scale our cloud infrastructure. Manage EKS clusters, Terraform modules, and GitHub Actions pipelines ensuring 99.99% uptime for core services.</p><ul><li>EKS cluster management</li><li>Infrastructure-as-code (Terraform + Ansible)</li><li>CI/CD with GitHub Actions</li><li>Observability with Datadog & PagerDuty</li></ul>',
-      qualifications: 'B.Tech or equivalent. 3+ years DevOps/Cloud experience.',
-      prefferdSkills: 'AWS (EKS · RDS · S3), Kubernetes, Terraform, Docker, GitHub Actions, Python, Linux',
-      city: 'Bangalore', cities: [cities[2]._id], workplaceType: 'remote',
-      hideSalaryRange: false, salaryType: salaryTypes[0]._id,
-      salaryMin: 200000, salaryMax: 320000, currency: 'INR',
-      experience: 3, noOfJobs: 1,
-      expiresAt: new Date(n + 25 * 86400000),
-      isFeaturedJob: true, startFeaturedDate: new Date(), endFeaturedDate: new Date(n + 14 * 86400000),
-      viewsCount: 240, applicationsCount: 8, userpackageId: up1._id,
-      aiJobSearchText: 'devops engineer aws kubernetes terraform docker github actions remote bangalore cloud',
-    },
-    {
-      uid: emp1._id, companyId: co1._id,
-      title: 'Product Designer (UI/UX)',
-      slug: 'product-designer-ui-ux-tc',
-      categoryId: designCat, jobType: ftType,
-      careerLevel: careerLevels[1]._id, educationId: educations[2]._id,
-      departmentId: depts[2]._id,
-      tags: ['Figma', 'UI/UX', 'Design System', 'Prototyping', 'User Research'],
-      status: 'approved',
-      description: '<p>Own the design process across our core product suite — from user research to high-fidelity Figma prototypes and design-system components.</p><ul><li>Lead UX research and usability testing</li><li>Create wireframes and interactive prototypes in Figma</li><li>Maintain TechCorp design system (100+ components)</li></ul>',
-      prefferdSkills: 'Figma, User Research, Prototyping, Design Systems, Accessibility, HTML/CSS basics',
-      city: 'Bangalore', cities: [cities[2]._id], workplaceType: 'onsite',
-      hideSalaryRange: false, salaryType: salaryTypes[0]._id,
-      salaryMin: 120000, salaryMax: 200000, currency: 'INR',
-      experience: 2, noOfJobs: 1,
-      expiresAt: new Date(n + 28 * 86400000),
-      viewsCount: 165, applicationsCount: 6, userpackageId: up1._id,
-      aiJobSearchText: 'product designer ui ux figma design system user research bangalore onsite',
-    },
-    {
-      uid: emp1._id, companyId: co1._id,
-      title: 'Data Scientist – NLP & LLMs',
-      slug: 'data-scientist-nlp-llms-tc',
-      categoryId: itCat, jobType: ftType,
-      careerLevel: careerLevels[2]._id, educationId: educations[3]._id,
-      departmentId: depts[0]._id,
-      tags: ['Python', 'Machine Learning', 'NLP', 'LLM', 'PyTorch', 'LangChain'],
-      status: 'approved',
-      description: '<p>Build production NLP and LLM-powered features. Fine-tune large language models, build RAG pipelines, and ship AI features reaching millions daily.</p><p><strong>Stack:</strong> Python 3.11, PyTorch, HuggingFace, LangChain, OpenAI API, Pinecone, MLflow, AWS SageMaker.</p>',
-      prefferdSkills: 'Python, PyTorch, Transformers, RAG, OpenAI API, LangChain, SQL, MLflow, Vector Databases',
-      city: 'Bangalore', cities: [cities[2]._id], workplaceType: 'hybrid',
+      description: `<h3>Role Overview</h3>
+<p>Join NexaCloud's DevOps & SRE team to build and operate the cloud infrastructure powering products used by 2M+ users. You will be responsible for reliability, scalability, and observability across our AWS-based multi-region setup.</p>
+
+<h3>Responsibilities</h3>
+<ul>
+  <li>Manage AWS EKS clusters (100+ nodes) and Helm chart releases</li>
+  <li>Write reusable Terraform modules for AWS infrastructure (VPC, RDS, ElastiCache, SQS, Lambda)</li>
+  <li>Build and maintain GitHub Actions CI/CD pipelines (build → test → deploy in < 8 min)</li>
+  <li>Set up observability: Prometheus + Grafana dashboards, Datadog APM, PagerDuty alerting</li>
+  <li>Conduct Game Days and lead post-mortems to drive SLA improvement</li>
+  <li>Drive FinOps initiatives — currently targeting 20% AWS cost reduction this quarter</li>
+</ul>
+
+<h3>Tech Environment</h3>
+<p>AWS (EKS · RDS Aurora · ElastiCache · S3 · SQS · Lambda · CloudFront), Kubernetes 1.29, Terraform 1.6, Helm, ArgoCD, GitHub Actions, Datadog, PagerDuty, Python, Bash, Golang (tooling)</p>`,
+      qualifications: 'B.Tech or equivalent. 3+ years in DevOps / Cloud / SRE. AWS Solutions Architect or CKA certification preferred.',
+      prefferdSkills: 'AWS EKS, Kubernetes, Terraform, Helm, ArgoCD, Docker, GitHub Actions, Prometheus, Grafana, Datadog, Python, Linux',
+      city: 'Bengaluru', cities: [cities[2]._id, cities[8]._id], workplaceType: 'remote',
       hideSalaryRange: false, salaryType: salaryTypes[1]._id,
-      salaryMin: 2400000, salaryMax: 4000000, currency: 'INR',
+      salaryMin: 1600000, salaryMax: 2800000, currency: 'INR',
       experience: 3, noOfJobs: 2,
-      expiresAt: new Date(n + 30 * 86400000),
-      isUrgent: true, urgentUntil: new Date(n + 10 * 86400000),
-      viewsCount: 540, applicationsCount: 19, userpackageId: up1._id,
-      aiJobSearchText: 'data scientist nlp llm python pytorch transformers langchain rag openai bangalore hybrid',
+      expiresAt: new Date(n + 28 * 86400000),
+      isFeaturedJob: true, startFeaturedDate: new Date(), endFeaturedDate: new Date(n + 14 * 86400000),
+      viewsCount: 876, applicationsCount: 21, userpackageId: upEmployer._id,
+      aiJobSearchText: 'devops sre engineer aws kubernetes terraform docker github actions python golang bengaluru hyderabad remote',
+      metaDescription: 'NexaCloud India – DevOps SRE Engineer (AWS, Kubernetes, Terraform) – Remote – 16–28 LPA.',
     },
+
+    // ── JOB 3: Lead Data Scientist – NLP & LLMs ──────────────────────────────
     {
-      uid: emp1._id, companyId: co1._id,
-      title: 'Engineering Manager – Platform',
-      slug: 'engineering-manager-platform-tc',
+      uid: employer._id, companyId: company._id,
+      title: 'Lead Data Scientist – NLP & Generative AI',
+      slug: 'lead-data-scientist-nlp-generative-ai-nexacloud',
       categoryId: itCat, jobType: ftType,
-      careerLevel: careerLevels[4]._id, educationId: educations[2]._id,
-      departmentId: depts[0]._id,
-      tags: ['Leadership', 'Node.js', 'AWS', 'Agile', 'System Design'],
+      careerLevel: careerLevels[4]._id, educationId: educations[3]._id,
+      departmentId: depts[2]._id,
+      tags: ['Python', 'Machine Learning', 'Deep Learning', 'Golang', 'AWS', 'React.js'],
       status: 'approved',
-      description: '<p>Lead a team of 10–12 engineers on TechCorps Platform squad. Own roadmap, architecture decisions, and engineering quality.</p>',
-      prefferdSkills: 'Technical Leadership, System Design, Node.js, AWS, Agile, Hiring & Mentoring',
-      city: 'Bangalore', cities: [cities[2]._id], workplaceType: 'hybrid',
+      description: `<h3>About the Opportunity</h3>
+<p>NexaCloud's Data & AI team is building the next generation of intelligent features for our enterprise analytics platform. We're looking for a <strong>Lead Data Scientist</strong> to own our NLP and Generative AI roadmap — from research prototypes to production systems handling millions of daily queries.</p>
+
+<h3>What You'll Build</h3>
+<ul>
+  <li>RAG-based document intelligence pipeline for enterprise knowledge bases</li>
+  <li>Fine-tuned LLMs (LLaMA 3, Mistral) for domain-specific tasks using QLoRA</li>
+  <li>Real-time anomaly detection models on streaming time-series data (AWS Kinesis)</li>
+  <li>A/B testing framework for ML model experiments (30+ experiments/month)</li>
+  <li>MLOps infrastructure: MLflow + AWS SageMaker + Weights & Biases</li>
+</ul>
+
+<h3>Stack</h3>
+<p>Python 3.11, PyTorch 2, HuggingFace Transformers, LangChain, LlamaIndex, OpenAI API, Pinecone (vector DB), AWS SageMaker, MLflow, W&B, Kafka, Spark</p>
+
+<h3>Team</h3>
+<p>You will lead a team of 4 data scientists and 2 ML engineers, reporting to the VP of Engineering.</p>`,
+      qualifications: "M.Tech / PhD in CS, Statistics, or related field. 5+ years ML experience including 2+ in production NLP systems.",
+      prefferdSkills: 'Python, PyTorch, Transformers, RAG, LangChain, LlamaIndex, OpenAI API, Pinecone, MLflow, SageMaker, SQL, Spark, Statistics',
+      city: 'Bengaluru', cities: [cities[2]._id], workplaceType: 'hybrid',
+      hideSalaryRange: false, salaryType: salaryTypes[1]._id,
+      salaryMin: 2800000, salaryMax: 5000000, currency: 'INR',
+      experience: 5, noOfJobs: 1,
+      expiresAt: new Date(n + 25 * 86400000),
+      isUrgent: true, urgentUntil: new Date(n + 7 * 86400000),
+      viewsCount: 1530, applicationsCount: 44, userpackageId: upEmployer._id,
+      aiJobSearchText: 'lead data scientist nlp generative ai llm python pytorch transformers langchain rag bengaluru hybrid 5 years',
+      metaDescription: 'NexaCloud – Lead Data Scientist (NLP, GenAI, LLMs) Bengaluru – 28–50 LPA.',
+    },
+
+    // ── JOB 4: Senior Product Designer ────────────────────────────────────────
+    {
+      uid: employer._id, companyId: company._id,
+      title: 'Senior Product Designer (UI/UX)',
+      slug: 'senior-product-designer-ui-ux-nexacloud',
+      categoryId: designCat, jobType: ftType,
+      careerLevel: careerLevels[3]._id, educationId: educations[2]._id,
+      departmentId: depts[4]._id,
+      tags: ['Figma', 'Adobe XD', 'Design System', 'SEO'],
+      status: 'approved',
+      description: `<h3>The Role</h3>
+<p>We are looking for a <strong>Senior Product Designer</strong> to join the Design & Research team. You will own the end-to-end design experience for NexaCloud's core cloud management dashboard — used daily by 80,000+ enterprise users.</p>
+
+<h3>Responsibilities</h3>
+<ul>
+  <li>Lead UX research, user interviews, and usability testing (10+ sessions/quarter)</li>
+  <li>Create wireframes, high-fidelity mockups, and interactive Figma prototypes</li>
+  <li>Maintain and evolve NexaCloud Design System (200+ components, Figma + Storybook)</li>
+  <li>Collaborate closely with engineers during implementation to ensure design fidelity</li>
+  <li>Champion accessibility (WCAG 2.1 AA compliance) across the product</li>
+  <li>Define and track UX metrics (task completion rate, CSAT, time-on-task)</li>
+</ul>
+
+<h3>Tools</h3>
+<p>Figma, FigJam, Maze (user testing), Hotjar, Storybook, Zeplin, Miro, Notion</p>`,
+      qualifications: 'B.Des / NID / NIFT or B.Tech with strong design portfolio. 4+ years of product design for web/SaaS.',
+      prefferdSkills: 'Figma, User Research, Usability Testing, Design Systems, Prototyping, Accessibility, HTML/CSS basics, Storybook, Maze',
+      city: 'Bengaluru', cities: [cities[2]._id], workplaceType: 'onsite',
+      hideSalaryRange: false, salaryType: salaryTypes[1]._id,
+      salaryMin: 1400000, salaryMax: 2400000, currency: 'INR',
+      experience: 4, noOfJobs: 1,
+      expiresAt: new Date(n + 26 * 86400000),
+      viewsCount: 643, applicationsCount: 18, userpackageId: upEmployer._id,
+      aiJobSearchText: 'senior product designer ui ux figma design system user research bengaluru onsite 4 years saas',
+      metaDescription: 'NexaCloud India – Senior Product Designer (UI/UX, Figma) Bengaluru – 14–24 LPA.',
+    },
+
+    // ── JOB 5: Engineering Manager – Platform ─────────────────────────────────
+    {
+      uid: employer._id, companyId: company._id,
+      title: 'Engineering Manager – Platform Engineering',
+      slug: 'engineering-manager-platform-engineering-nexacloud',
+      categoryId: itCat, jobType: ftType,
+      careerLevel: careerLevels[5]._id, educationId: educations[2]._id,
+      departmentId: depts[0]._id,
+      tags: ['Leadership', 'Node.js', 'AWS', 'Agile / Scrum', 'System Design'],
+      status: 'approved',
+      description: `<h3>About the Role</h3>
+<p>NexaCloud is looking for an experienced <strong>Engineering Manager</strong> to lead the Platform Engineering squad — a team of 12 engineers building the distributed systems and APIs at the heart of our SaaS platform.</p>
+
+<h3>Responsibilities</h3>
+<ul>
+  <li>Own team roadmap, sprint planning, and quarterly OKR delivery</li>
+  <li>Drive architecture decisions for distributed systems (event-driven, microservices)</li>
+  <li>Conduct 1:1s, performance reviews, and career growth conversations</li>
+  <li>Partner with PM, Design, and SRE on cross-functional initiatives</li>
+  <li>Reduce on-call burden through reliability improvements and runbook culture</li>
+  <li>Lead technical hiring — sourcing, interviews, and onboarding</li>
+</ul>
+
+<h3>What We're Looking For</h3>
+<p>Someone who has been a strong individual contributor (5+ years coding) and has transitioned into management (2+ years). You should be comfortable in both a code review and a business strategy meeting.</p>`,
+      qualifications: 'B.Tech CS or equivalent. 8+ years of engineering experience with 2+ years in people management.',
+      prefferdSkills: 'System Design, Node.js, AWS, Microservices, Technical Leadership, Hiring, Agile, PostgreSQL, Redis',
+      city: 'Bengaluru', cities: [cities[2]._id], workplaceType: 'hybrid',
       hideSalaryRange: false, salaryType: salaryTypes[1]._id,
       salaryMin: 4000000, salaryMax: 7000000, currency: 'INR',
       experience: 8, noOfJobs: 1,
       expiresAt: new Date(n + 30 * 86400000),
-      viewsCount: 310, applicationsCount: 7, userpackageId: up1._id,
+      viewsCount: 920, applicationsCount: 12, userpackageId: upEmployer._id,
+      aiJobSearchText: 'engineering manager platform engineering nodejs aws microservices bengaluru hybrid leadership 8 years',
+      metaDescription: 'NexaCloud India – Engineering Manager, Platform Engineering – Bengaluru – 40–70 LPA.',
     },
+
+    // ── JOB 6: Mobile Developer (React Native) ────────────────────────────────
     {
-      uid: emp1._id, companyId: co1._id,
-      title: 'HR Business Partner',
-      slug: 'hr-business-partner-tc',
-      categoryId: hrCat, jobType: ftType,
-      careerLevel: careerLevels[1]._id, educationId: educations[2]._id,
-      departmentId: depts[4]._id,
-      tags: ['HR', 'Talent Acquisition', 'HRBP', 'Employee Engagement'],
-      status: 'pending',
-      description: '<p>Drive strategic HR initiatives as HRBP for Engineering and Product divisions at TechCorp.</p>',
-      prefferdSkills: 'HR Business Partnering, Talent Acquisition, Performance Management, HRMS',
-      city: 'Bangalore', cities: [cities[2]._id], workplaceType: 'onsite',
-      hideSalaryRange: false, salaryType: salaryTypes[0]._id,
-      salaryMin: 100000, salaryMax: 150000, currency: 'INR',
-      experience: 3, noOfJobs: 1,
-      expiresAt: new Date(n + 30 * 86400000),
-      viewsCount: 0, applicationsCount: 0, userpackageId: up1._id,
-    },
-    {
-      uid: emp1._id, companyId: co1._id,
-      title: 'Senior Backend Engineer – Go',
-      slug: 'senior-backend-engineer-go-tc',
+      uid: employer._id, companyId: company._id,
+      title: 'React Native Developer – Mobile Apps',
+      slug: 'react-native-developer-mobile-apps-nexacloud',
       categoryId: itCat, jobType: ftType,
       careerLevel: careerLevels[2]._id, educationId: educations[2]._id,
-      departmentId: depts[0]._id,
-      tags: ['Go', 'gRPC', 'Kubernetes', 'PostgreSQL'],
-      status: 'draft',
-      description: '<p>Build next-gen microservices in Go. Own core payment and notification services.</p>',
-      prefferdSkills: 'Go, gRPC, PostgreSQL, Redis, Kubernetes, Docker, Kafka',
-      city: 'Bangalore', workplaceType: 'remote',
-      hideSalaryRange: true, experience: 5, noOfJobs: 1,
-      userpackageId: up1._id,
-    },
-    // ── InnovateMind ─────────────────────────────────────────────
-    {
-      uid: emp2._id, companyId: co2._id,
-      title: 'React Native Developer',
-      slug: 'react-native-developer-im',
-      categoryId: itCat, jobType: ftType,
-      careerLevel: careerLevels[1]._id, educationId: educations[2]._id,
-      departmentId: depts[6]._id,
-      tags: ['React Native', 'JavaScript', 'iOS', 'Android', 'REST API'],
+      departmentId: depts[1]._id,
+      tags: ['React Native', 'TypeScript', 'REST API', 'Node.js', 'AWS'],
       status: 'approved',
-      description: '<p>Build cross-platform mobile apps for e-commerce clients. Deliver polished iOS and Android apps from API integration to app store deployment.</p>',
-      prefferdSkills: 'React Native, JavaScript, Redux Toolkit, REST APIs, Firebase, Push Notifications',
-      city: 'Mumbai', cities: [cities[0]._id], workplaceType: 'onsite',
-      hideSalaryRange: false, salaryType: salaryTypes[0]._id,
-      salaryMin: 80000, salaryMax: 140000, currency: 'INR',
+      description: `<h3>Overview</h3>
+<p>Build NexaCloud's enterprise mobile app (iOS + Android) used by 120,000+ field engineers. You will work on a green-field React Native 0.73 codebase with TypeScript from day one.</p>
+
+<h3>Responsibilities</h3>
+<ul>
+  <li>Develop performant, accessible mobile UI components (React Native + Expo)</li>
+  <li>Integrate with REST and GraphQL APIs — implement offline-first data sync using Watermelon DB</li>
+  <li>Implement push notifications (FCM + APNs), biometric auth, and deep linking</li>
+  <li>Write Detox E2E tests and Maestro UI flows; target 80%+ test coverage</li>
+  <li>Collaborate with design on pixel-perfect implementation from Figma files</li>
+  <li>Submit monthly releases to App Store and Play Store via Fastlane + CodeMagic</li>
+</ul>`,
+      qualifications: 'B.Tech or equivalent. 2–4 years of React Native development. Apps in production on App Store / Play Store.',
+      prefferdSkills: 'React Native, Expo, TypeScript, Redux Toolkit, React Query, WatermelonDB, Detox, Fastlane, Firebase, REST API',
+      city: 'Bengaluru', cities: [cities[2]._id, cities[8]._id], workplaceType: 'hybrid',
+      hideSalaryRange: false, salaryType: salaryTypes[1]._id,
+      salaryMin: 1000000, salaryMax: 1800000, currency: 'INR',
       experience: 2, noOfJobs: 2,
-      expiresAt: new Date(n + 20 * 86400000),
-      viewsCount: 195, applicationsCount: 10, userpackageId: up3._id,
-      aiJobSearchText: 'react native developer javascript ios android mobile app mumbai onsite ecommerce',
-    },
-    {
-      uid: emp2._id, companyId: co2._id,
-      title: 'Digital Marketing Specialist',
-      slug: 'digital-marketing-specialist-im',
-      categoryId: mktCat, jobType: ftType,
-      careerLevel: careerLevels[1]._id, educationId: educations[2]._id,
-      departmentId: depts[6]._id,
-      tags: ['SEO', 'Google Ads', 'Meta Ads', 'Analytics', 'Content Marketing'],
-      status: 'approved',
-      description: '<p>Drive growth for clients through data-driven digital marketing across SEO, PPC, social, and email. Manage ₹50L+ monthly ad spends and own ROAS targets.</p>',
-      prefferdSkills: 'Google Ads, Meta Ads Manager, SEO, GA4, Google Tag Manager, Email Marketing, Copywriting',
-      city: 'Mumbai', cities: [cities[0]._id], workplaceType: 'hybrid',
-      hideSalaryRange: false, salaryType: salaryTypes[0]._id,
-      salaryMin: 60000, salaryMax: 100000, currency: 'INR',
-      experience: 2, noOfJobs: 1,
-      expiresAt: new Date(n + 18 * 86400000),
-      viewsCount: 110, applicationsCount: 5, userpackageId: up3._id,
-    },
-    {
-      uid: emp2._id, companyId: co2._id,
-      title: 'UI/UX Designer – E-Commerce',
-      slug: 'ui-ux-designer-ecommerce-im',
-      categoryId: designCat, jobType: ptType,
-      careerLevel: careerLevels[1]._id, educationId: educations[2]._id,
-      departmentId: depts[7]._id,
-      tags: ['Figma', 'E-Commerce', 'Wireframing', 'User Research'],
-      status: 'approved',
-      description: '<p>Design exceptional shopping experiences for Indias top e-commerce brands across mobile and desktop for 5+ active client brands.</p>',
-      prefferdSkills: 'Figma, Adobe XD, Wireframing, Prototyping, User Testing, Shopify, Responsive Design',
-      city: 'Mumbai', cities: [cities[0]._id], workplaceType: 'hybrid',
-      hideSalaryRange: false, salaryType: salaryTypes[0]._id,
-      salaryMin: 50000, salaryMax: 90000, currency: 'INR',
-      experience: 1, noOfJobs: 1,
       expiresAt: new Date(n + 22 * 86400000),
-      viewsCount: 78, applicationsCount: 4, userpackageId: up3._id,
-      aiJobSearchText: 'ui ux designer figma ecommerce prototyping mumbai hybrid part time',
+      viewsCount: 512, applicationsCount: 19, userpackageId: upEmployer._id,
+      aiJobSearchText: 'react native developer mobile ios android typescript bengaluru hyderabad hybrid 2 years nexacloud',
+    },
+
+    // ── JOB 7: Growth Marketing Manager ──────────────────────────────────────
+    {
+      uid: employer._id, companyId: company._id,
+      title: 'Growth Marketing Manager – B2B SaaS',
+      slug: 'growth-marketing-manager-b2b-saas-nexacloud',
+      categoryId: mktCat, jobType: ftType,
+      careerLevel: careerLevels[5]._id, educationId: educations[2]._id,
+      departmentId: depts[6]._id,
+      tags: ['Google Ads', 'SEO', 'Leadership', 'Communication', 'Problem Solving'],
+      status: 'approved',
+      description: `<h3>The Role</h3>
+<p>NexaCloud is hiring a <strong>Growth Marketing Manager</strong> to own demand generation for our B2B SaaS products across APAC. You will manage ₹1.5 Cr/month in paid spend and drive MQL targets feeding a 50-person sales team.</p>
+
+<h3>What You'll Own</h3>
+<ul>
+  <li>Full-funnel paid acquisition: Google Search, LinkedIn Ads, G2, Capterra, Review sites</li>
+  <li>SEO – content strategy, technical SEO audits, link building (targeting 300% organic growth)</li>
+  <li>Marketing automation: HubSpot workflows, lead scoring, email nurture sequences</li>
+  <li>Product-led growth: in-app onboarding experiments, feature adoption campaigns</li>
+  <li>Weekly performance reporting to CMO with channel ROI breakdown</li>
+  <li>Manage a team of 3: 1 SEO specialist, 1 paid ads executive, 1 content writer</li>
+</ul>`,
+      qualifications: 'MBA Marketing or B.Tech + relevant experience. 5+ years in B2B SaaS marketing, 2+ years managing a team.',
+      prefferdSkills: 'Google Ads, LinkedIn Ads, SEO, HubSpot, GA4, GTM, Salesforce, A/B Testing, SQL (analytics), Copywriting',
+      city: 'Bengaluru', cities: [cities[2]._id], workplaceType: 'hybrid',
+      hideSalaryRange: false, salaryType: salaryTypes[1]._id,
+      salaryMin: 1500000, salaryMax: 2800000, currency: 'INR',
+      experience: 5, noOfJobs: 1,
+      expiresAt: new Date(n + 20 * 86400000),
+      viewsCount: 381, applicationsCount: 9, userpackageId: upEmployer._id,
+      aiJobSearchText: 'growth marketing manager b2b saas google ads seo hubspot bengaluru hybrid 5 years demand generation',
+    },
+
+    // ── JOB 8: HR Business Partner (PENDING — not yet live) ──────────────────
+    {
+      uid: employer._id, companyId: company._id,
+      title: 'HR Business Partner – Engineering & Product',
+      slug: 'hr-business-partner-engineering-product-nexacloud',
+      categoryId: hrCat, jobType: ftType,
+      careerLevel: careerLevels[2]._id, educationId: educations[2]._id,
+      departmentId: depts[7]._id,
+      tags: ['Leadership', 'Communication', 'Agile / Scrum'],
+      status: 'pending',
+      description: `<h3>Role Summary</h3>
+<p>Drive strategic HR partnerships for the Engineering and Product divisions at NexaCloud. You will be the single point of contact for 150+ employees across these two functions.</p>
+
+<h3>Key Responsibilities</h3>
+<ul>
+  <li>Partner with Engineering VPs and Directors on workforce planning and org design</li>
+  <li>Own end-to-end talent acquisition for non-tech roles in the division (5–8 open positions at any time)</li>
+  <li>Drive quarterly engagement surveys; own and execute action plans</li>
+  <li>Handle performance management cycles, PIPs, and disciplinary proceedings</li>
+  <li>Conduct compensation benchmarking using Radford / Mercer data</li>
+</ul>`,
+      qualifications: 'MBA HR or equivalent. 4–6 years HRBP experience, preferably in a tech product company.',
+      prefferdSkills: 'HR Business Partnering, Talent Acquisition, Performance Management, Compensation Benchmarking, HRMS (Darwinbox / BambooHR), Employee Engagement',
+      city: 'Bengaluru', cities: [cities[2]._id], workplaceType: 'onsite',
+      hideSalaryRange: false, salaryType: salaryTypes[1]._id,
+      salaryMin: 1000000, salaryMax: 1600000, currency: 'INR',
+      experience: 4, noOfJobs: 1,
+      expiresAt: new Date(n + 30 * 86400000),
+      viewsCount: 0, applicationsCount: 0, userpackageId: upEmployer._id,
+    },
+
+    // ── JOB 9: Backend Engineer Golang (DRAFT) ────────────────────────────────
+    {
+      uid: employer._id, companyId: company._id,
+      title: 'Senior Backend Engineer – Golang (Payments Platform)',
+      slug: 'senior-backend-engineer-golang-payments-nexacloud',
+      categoryId: itCat, jobType: ftType,
+      careerLevel: careerLevels[3]._id, educationId: educations[2]._id,
+      departmentId: depts[0]._id,
+      tags: ['Golang', 'Kubernetes', 'PostgreSQL', 'REST API'],
+      status: 'draft',
+      description: '<p>Build NexaCloud\'s next-generation payments and billing microservices in Go. Own the subscription billing engine, usage-based pricing engine, and invoice generation pipeline.</p>',
+      qualifications: 'B.Tech CS or equivalent. 5+ years backend, 2+ years Go.',
+      prefferdSkills: 'Golang, gRPC, PostgreSQL, Redis, Kafka, Kubernetes, Docker, Stripe API, Clean Architecture',
+      city: 'Bengaluru', workplaceType: 'remote',
+      hideSalaryRange: true, experience: 5, noOfJobs: 1,
+      userpackageId: upEmployer._id,
+    },
+
+    // ── JOB 10: Software Engineering Intern ───────────────────────────────────
+    {
+      uid: employer._id, companyId: company._id,
+      title: 'Software Engineering Intern – Full Stack (6 Months)',
+      slug: 'software-engineering-intern-full-stack-nexacloud',
+      categoryId: itCat, jobType: inType,
+      careerLevel: careerLevels[0]._id, educationId: educations[2]._id,
+      departmentId: depts[1]._id,
+      tags: ['JavaScript', 'React.js', 'Node.js', 'MongoDB', 'REST API'],
+      status: 'approved',
+      description: `<h3>Internship Overview</h3>
+<p>NexaCloud's 6-month full-time internship is designed to give penultimate/final-year students real production experience. Interns ship actual features, attend design reviews, and get a dedicated mentor from the engineering team.</p>
+
+<h3>What You'll Work On</h3>
+<ul>
+  <li>Build and ship 2–3 features on our customer-facing dashboard (React + Node.js)</li>
+  <li>Write automated tests and participate in code reviews</li>
+  <li>Attend weekly engineering all-hands and architecture walkthroughs</li>
+  <li>Present your intern project to the CTO at the end of the internship</li>
+</ul>
+
+<p><strong>Stipend:</strong> ₹30,000–₹40,000/month + cab allowance + meals</p>
+<p><strong>PPO:</strong> High-performing interns receive a Pre-Placement Offer (Full Time SDE-1)</p>`,
+      qualifications: 'Pursuing B.Tech / B.E in CS or related field. 2024 or 2025 batch. Strong DSA and basic web development.',
+      prefferdSkills: 'JavaScript, React.js, Node.js, MongoDB, HTML, CSS, Git, REST APIs, Problem Solving',
+      city: 'Bengaluru', cities: [cities[2]._id], workplaceType: 'onsite',
+      hideSalaryRange: false, salaryType: salaryTypes[0]._id,
+      salaryMin: 30000, salaryMax: 40000, currency: 'INR',
+      experience: 0, noOfJobs: 5,
+      expiresAt: new Date(n + 35 * 86400000),
+      viewsCount: 2140, applicationsCount: 87, userpackageId: upEmployer._id,
+      aiJobSearchText: 'software engineering intern full stack react nodejs mongodb bengaluru onsite 2024 2025 batch fresher',
+      metaDescription: 'NexaCloud India – SWE Intern (React + Node.js) 6 months – ₹30–40K/month – PPO available.',
     },
   ]);
   logger.info(`✅ ${jobs.length} jobs (approved / pending / draft)`);
@@ -700,413 +955,552 @@ const seed = async () => {
   const approvedJobs = jobs.filter(j => j.status === 'approved');
 
   // ═════════════════════════════════════════════════════════════════════════════
-  // 15 · RESUMES
+  // 16 · RESUMES
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(Resume);
-  const [res1, res2] = await Resume.insertMany([
+  const [resume] = await Resume.insertMany([
     {
-      uid: js1._id,
-      applicationTitle: 'Senior Full Stack Developer',
-      firstName: 'Rahul', lastName: 'Verma',
-      gender: 'male', emailAddress: 'jobseeker@hirehub.io', cell: '+91-9800000003',
+      uid: jobseeker._id,
+      applicationTitle: 'Senior Full Stack Developer | React · Node.js · AWS',
+      firstName: 'Priya', lastName: 'Nair',
+      gender: 'female', emailAddress: 'jobseeker@hirehub.io', cell: '+91-9800000003',
       nationality: 'Indian',
-      photo: { publicId: 'resumes/rahul/photo', secureUrl: 'https://ui-avatars.com/api/?name=Rahul+Verma&background=f59e0b&color=fff&size=200' },
+      photo: {
+        publicId: 'resumes/priya/photo',
+        secureUrl: 'https://ui-avatars.com/api/?name=Priya+Nair&background=f59e0b&color=fff&size=200',
+      },
       jobCategory: itCat, jobType: ftType,
-      keywords: 'Full Stack Developer, React, Node.js, MongoDB, AWS, TypeScript, Docker',
-      tags: ['JavaScript', 'React', 'Node.js', 'MongoDB', 'AWS', 'TypeScript', 'Docker'],
+      keywords: 'Full Stack Developer, React.js, Node.js, TypeScript, MongoDB, AWS, Docker, GraphQL, Senior SDE',
+      tags: ['React.js', 'Node.js', 'TypeScript', 'MongoDB', 'AWS', 'Docker', 'GraphQL', 'PostgreSQL', 'Redis', 'Next.js'],
       published: true, searchable: true, visibility: 'public', quickApply: true,
-      resume: '<p>Results-driven Full Stack Developer with 5+ years building scalable web applications. Expert in React + Node.js. Led multiple product launches from 0 → 100K+ users.</p>',
-      skills: 'React.js, Next.js, TypeScript, Node.js, Express.js, MongoDB, PostgreSQL, Redis, AWS (EC2 · S3 · Lambda · ECS), Docker, Kubernetes, GraphQL, REST APIs, Jest, Cypress, CI/CD',
-      institutes: [{ institute: 'Indian Institute of Technology, Delhi', instituteCertificateName: 'Bachelor of Technology', instituteStudyArea: 'Computer Science & Engineering', fromDate: '2015', toDate: '2019' }],
-      employers: [
-        { employer: 'TechStartup Pvt Ltd', employerCity: 'Bangalore', employerPosition: 'Senior Software Engineer', employerFromDate: '2022-06', employerToDate: '', employerCurrentStatus: 1 },
-        { employer: 'Infosys Ltd', employerCity: 'Bangalore', employerPosition: 'Software Engineer', employerFromDate: '2019-07', employerToDate: '2022-05', employerCurrentStatus: 0 },
-      ],
-      languages: [
-        { language: 'English', proficiency: 'fluent' },
-        { language: 'Hindi',   proficiency: 'native' },
-        { language: 'Kannada', proficiency: 'beginner' },
-      ],
-      addresses: [{ address: 'Flat 302, Green Residency, Koramangala', addressCity: 'Bangalore', latitude: '12.9279', longitude: '77.6271' }],
-      files: [{ publicId: 'resumes/rahul/cv', secureUrl: 'https://example.com/resumes/rahul-verma.pdf', filename: 'Rahul_Verma_CV_2024.pdf', filetype: 'application/pdf', filesize: 420000, uploadedAt: new Date(n - 5 * 86400000) }],
-      isFeaturedResume: true, startFeaturedDate: new Date(), endFeaturedDate: new Date(n + 14 * 86400000),
-      atsScore: 84, completionPercentage: 92,
-      hits: 258, viewsCount: 41, downloadCount: 6,
-      aiResumeSearchText: 'senior full stack developer react nodejs typescript mongodb aws bangalore 5 years iit delhi',
-      userpackageId: up2._id,
-    },
-    {
-      uid: js2._id,
-      applicationTitle: 'UI/UX Designer',
-      firstName: 'Sneha', lastName: 'Kapoor',
-      gender: 'female', emailAddress: 'sneha.jobseeker@hirehub.io', cell: '+91-9800000005',
-      nationality: 'Indian',
-      photo: { publicId: 'resumes/sneha/photo', secureUrl: 'https://ui-avatars.com/api/?name=Sneha+Kapoor&background=ec4899&color=fff&size=200' },
-      jobCategory: designCat, jobType: ftType,
-      keywords: 'UI UX Designer, Figma, Design Systems, User Research, Prototyping, Product Design',
-      tags: ['Figma', 'UI/UX', 'Prototyping', 'Design System', 'Adobe XD', 'User Research'],
-      published: true, searchable: true, visibility: 'public', quickApply: false,
-      resume: '<p>Creative UI/UX Designer with 3 years crafting delightful digital experiences for mobile and web. Strong in user research, IA, and interaction design.</p>',
-      skills: 'Figma, Adobe XD, Sketch, Prototyping, Wireframing, User Research, Usability Testing, Design Systems, HTML/CSS, Zeplin, Principle, Miro',
+      resume: `<p>Results-driven <strong>Senior Full Stack Developer</strong> with 5+ years of experience architecting and delivering high-scale web applications. Deep expertise in React / Next.js on the frontend and Node.js / Express microservices on the backend. Led multiple 0→1 product launches including a SaaS platform now serving 400K+ active users. Passionate about clean code, DX tooling, and engineering teams that ship fast without sacrificing quality.</p>`,
+      skills: 'React.js 18, Next.js 14, TypeScript, Redux Toolkit, React Query, Node.js 20, Express.js, NestJS, MongoDB Atlas, PostgreSQL 15, Redis, GraphQL (Apollo), REST APIs, AWS (EC2 · ECS · Lambda · S3 · SQS · CloudFront), Docker, Kubernetes, Terraform (basics), GitHub Actions, Jest, Cypress, Vitest, Zod, Prisma, Drizzle ORM, Git, Linux',
       institutes: [
-        { institute: 'National Institute of Design, Ahmedabad', instituteCertificateName: 'Post Graduate Diploma', instituteStudyArea: 'Interaction Design', fromDate: '2019', toDate: '2021' },
-        { institute: 'University of Mumbai', instituteCertificateName: 'Bachelor of Fine Arts', instituteStudyArea: 'Visual Communication', fromDate: '2016', toDate: '2019' },
+        {
+          institute: 'Indian Institute of Technology, Madras',
+          instituteCertificateName: 'Bachelor of Technology',
+          instituteStudyArea: 'Computer Science & Engineering',
+          fromDate: '2015',
+          toDate: '2019',
+        },
       ],
       employers: [
-        { employer: 'DesignStudio Co', employerCity: 'Mumbai', employerPosition: 'UI/UX Designer', employerFromDate: '2021-09', employerToDate: '', employerCurrentStatus: 1 },
+        {
+          employer: 'Razorpay Software Pvt Ltd',
+          employerCity: 'Bengaluru',
+          employerPosition: 'Senior Software Development Engineer',
+          employerFromDate: '2022-03',
+          employerToDate: '',
+          employerCurrentStatus: 1,
+        },
+        {
+          employer: 'Freshworks Inc.',
+          employerCity: 'Chennai',
+          employerPosition: 'Software Development Engineer – II',
+          employerFromDate: '2019-07',
+          employerToDate: '2022-02',
+          employerCurrentStatus: 0,
+        },
       ],
       languages: [
-        { language: 'English', proficiency: 'fluent' },
-        { language: 'Hindi',   proficiency: 'native' },
-        { language: 'Marathi', proficiency: 'native' },
+        { language: 'English',  proficiency: 'fluent' },
+        { language: 'Hindi',    proficiency: 'fluent' },
+        { language: 'Tamil',    proficiency: 'native' },
+        { language: 'Kannada',  proficiency: 'beginner' },
       ],
-      addresses: [{ address: 'A-14, Shiv Nagar Society, Andheri', addressCity: 'Mumbai', latitude: '19.1197', longitude: '72.8464' }],
-      files: [{ publicId: 'resumes/sneha/cv', secureUrl: 'https://example.com/resumes/sneha-kapoor.pdf', filename: 'Sneha_Kapoor_Portfolio_2024.pdf', filetype: 'application/pdf', filesize: 650000, uploadedAt: new Date(n - 7 * 86400000) }],
-      atsScore: 71, completionPercentage: 77,
-      hits: 98, viewsCount: 17, downloadCount: 2,
-      aiResumeSearchText: 'ui ux designer figma design systems user research mumbai 3 years nid ahmedabad',
-      userpackageId: up4._id,
+      addresses: [
+        {
+          address: 'Flat 204, Prestige Lakeside Habitat, Varthur Road, Bengaluru – 560087',
+          addressCity: 'Bengaluru',
+          latitude: '12.9355',
+          longitude: '77.7065',
+        },
+      ],
+      files: [
+        {
+          publicId: 'resumes/priya/cv_2024',
+          secureUrl: 'https://example.com/resumes/Priya_Nair_SDE_Resume_2024.pdf',
+          filename: 'Priya_Nair_SDE_Resume_2024.pdf',
+          filetype: 'application/pdf',
+          filesize: 468000,
+          uploadedAt: new Date(n - 3 * 86400000),
+        },
+      ],
+      isFeaturedResume: true,
+      startFeaturedDate: new Date(),
+      endFeaturedDate: new Date(n + 14 * 86400000),
+      atsScore: 91,
+      completionPercentage: 96,
+      hits: 342, viewsCount: 58, downloadCount: 9,
+      aiResumeSearchText: 'senior full stack developer react nodejs typescript mongodb aws docker graphql bengaluru 5 years iit madras razorpay freshworks',
+      userpackageId: upJobseeker._id,
     },
   ]);
-  logger.info('✅ 2 resumes');
+  logger.info('✅ 1 resume (Priya Nair)');
 
   // ═════════════════════════════════════════════════════════════════════════════
-  // 16 · COVER LETTERS
+  // 17 · COVER LETTERS
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(CoverLetter);
-  const [cl1, cl2, cl3] = await CoverLetter.insertMany([
+  const [cl1, cl2] = await CoverLetter.insertMany([
     {
-      uid: js1._id,
-      title: 'General Cover Letter – Full Stack Developer', alias: 'general-fs-cover-letter',
-      description: '<p>Dear Hiring Manager,</p><p>I am excited to apply for this Full Stack Developer role. With 5+ years in React and Node.js, I have built and scaled production systems serving hundreds of thousands of users. At my current company I led an API rewrite that cut latency by 40% and infrastructure costs by 25%.</p><p>Warm regards,<br/>Rahul Verma</p>',
-      published: true, searchable: true, status: true, hits: 4,
+      uid: jobseeker._id,
+      title: 'Senior SDE Role — General Cover Letter',
+      alias: 'senior-sde-general-cover',
+      description: `<p>Dear Hiring Manager,</p>
+<p>I am excited to apply for the Senior Software Development Engineer role. Over the past 5+ years — including 2 years at Razorpay and 3 years at Freshworks — I have built full-stack products at scale, leading teams from prototype to millions of daily active users.</p>
+<p>At Razorpay, I architected the micro-frontend migration that reduced our TTI by 42% and led a team of 4 engineers. At Freshworks, I built the core email-threading engine for Freshdesk, handling 10M+ events/day.</p>
+<p>I am most energised by roles where I can own both the technical direction and the quality of code that ships. I am particularly drawn to your engineering culture and the scale of challenges you are solving.</p>
+<p>I would welcome the opportunity to discuss how my experience aligns with your team's needs.</p>
+<p>Warm regards,<br/><strong>Priya Nair</strong></p>`,
+      published: true, searchable: true, status: true, hits: 6,
     },
     {
-      uid: js1._id,
-      title: 'Startup Cover Letter – Engineering', alias: 'startup-eng-cover-letter',
-      description: '<p>Dear Team,</p><p>I love building from scratch. I bring full-stack expertise, a bias for action, and the ability to wear multiple hats. Let\'s build something great together.</p><p>Rahul Verma</p>',
-      published: true, searchable: false, status: true, hits: 1,
-    },
-    {
-      uid: js2._id,
-      title: 'Designer Cover Letter', alias: 'designer-cover-letter',
-      description: '<p>Dear Hiring Manager,</p><p>As a UI/UX Designer with a background in visual communication, I bring both aesthetic sensibility and user-centred thinking. I am excited to contribute to your product design team.</p><p>Warm regards,<br/>Sneha Kapoor</p>',
-      published: true, searchable: true, status: true, hits: 0,
+      uid: jobseeker._id,
+      title: 'Startup / High-Growth Cover Letter',
+      alias: 'startup-high-growth-cover',
+      description: `<p>Dear Team,</p>
+<p>I thrive in environments where speed, ownership, and impact matter. I have experience wearing multiple hats — from building the backend API to deploying on AWS to writing the E2E test that catches the regression at 2 AM.</p>
+<p>I bring 5 years of full-stack depth (React + Node.js + AWS), a strong sense of product ownership, and the ability to mentor junior engineers while still contributing meaningfully myself.</p>
+<p>Let's build something great together.</p>
+<p>— Priya</p>`,
+      published: true, searchable: false, status: true, hits: 2,
     },
   ]);
-  logger.info('✅ 3 cover letters');
+  logger.info('✅ 2 cover letters');
 
   // ═════════════════════════════════════════════════════════════════════════════
-  // 17 · APPLICATIONS  (flat interview fields per new Application model)
+  // 18 · APPLICATIONS
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(Application);
-  const ivDate1 = new Date(n + 3 * 86400000);
-  const ivDate2 = new Date(n + 2 * 86400000);
+  const ivDate = new Date(n + 2 * 86400000);
 
-  const [app1, app2, app3, app4, app5] = await Application.insertMany([
+  const [app1, app2, app3] = await Application.insertMany([
+    // Application 1: Priya → Senior Full Stack @ NexaCloud — interview_scheduled
     {
-      // Rahul → Senior Full Stack @ TechCorp — interview_scheduled
-      jobId: approvedJobs[0]._id, uid: js1._id, cvId: res1._id, companyId: co1._id,
-      applyMessage: 'I have been following TechCorp for years — perfect match for my React + Node.js background.',
-      coverLetterId: cl1._id, quickApply: false,
-      status: 'interview_scheduled', actionStatus: 3,
+      jobId: approvedJobs[0]._id,
+      uid: jobseeker._id,
+      cvId: resume._id,
+      companyId: company._id,
+      applyMessage: "NexaCloud's scale and engineering culture are exactly what I'm looking for. My 5 years at Razorpay and Freshworks map perfectly to this role — especially the React + Node.js stack, GraphQL APIs, and AWS infrastructure. I'd love to bring that experience to your Product Engineering squad.",
+      coverLetterId: cl1._id,
+      quickApply: false,
+      status: 'interview_scheduled',
+      actionStatus: 3,
       statusHistory: [
-        { status: 'applied',             note: 'Application submitted',             changedBy: js1._id,  changedAt: new Date(n - 5 * 86400000) },
-        { status: 'reviewed',            note: 'Resume reviewed by HR',              changedBy: emp1._id, changedAt: new Date(n - 3 * 86400000) },
-        { status: 'shortlisted',         note: 'Strong profile – shortlisted',       changedBy: emp1._id, changedAt: new Date(n - 86400000) },
-        { status: 'interview_scheduled', note: 'Video interview Thu 3 PM',           changedBy: emp1._id, changedAt: new Date(n - 43200000) },
+        { status: 'applied',             note: 'Application submitted via HireHub.',          changedBy: jobseeker._id, changedAt: new Date(n - 6 * 86400000) },
+        { status: 'reviewed',            note: 'Resume reviewed by Talent team.',              changedBy: employer._id,  changedAt: new Date(n - 4 * 86400000) },
+        { status: 'shortlisted',         note: 'Strong IIT Madras + Razorpay background. Shortlisted for technical round.',  changedBy: employer._id, changedAt: new Date(n - 2 * 86400000) },
+        { status: 'interview_scheduled', note: 'Round 1 – Technical (System Design + Coding, 90 min). Google Meet.', changedBy: employer._id, changedAt: new Date(n - 86400000) },
       ],
-      resumeView: true, resumeViewedAt: new Date(n - 3 * 86400000),
+      resumeView: true, resumeViewedAt: new Date(n - 4 * 86400000),
       rating: 4,
-      employerNotes: 'IIT Delhi grad, strong React & Node portfolio. Must-call.',
-      candidateNotes: 'First choice company. Very interested.',
-      interviewDate: ivDate1,
-      interviewType: 'video',
-      interviewLink: 'https://meet.google.com/abc-defg-hij',
-      interviewNotes: 'Round 1 – Technical with Platform TL (60 min). System design + coding.',
-      interviewScheduledAt: new Date(n - 43200000),
-      activityLog: [
-        { action: 'apply',         description: 'Submitted application',  performedBy: js1._id,  ipAddress: '106.51.0.1',   createdAt: new Date(n - 5 * 86400000) },
-        { action: 'resume_viewed', description: 'Employer viewed resume', performedBy: emp1._id, ipAddress: '49.205.1.100', createdAt: new Date(n - 3 * 86400000) },
-        { action: 'status_change', description: 'Shortlisted',            performedBy: emp1._id, ipAddress: '49.205.1.100', createdAt: new Date(n - 86400000) },
-        { action: 'status_change', description: 'Interview scheduled',    performedBy: emp1._id, ipAddress: '49.205.1.100', createdAt: new Date(n - 43200000) },
-      ],
-      userpackageId: up2._id,
-    },
-    {
-      // Rahul → Data Scientist @ TechCorp — applied
-      jobId: approvedJobs[3]._id, uid: js1._id, cvId: res1._id, companyId: co1._id,
-      applyMessage: '2+ years NLP work, hands-on with Transformers, LangChain, and RAG pipelines.',
-      quickApply: true, status: 'applied', actionStatus: 1,
-      statusHistory: [{ status: 'applied', note: 'Quick apply', changedBy: js1._id, changedAt: new Date(n - 2 * 86400000) }],
-      resumeView: false, rating: 0,
-      activityLog: [{ action: 'apply', description: 'Quick apply submitted', performedBy: js1._id, ipAddress: '106.51.0.1', createdAt: new Date(n - 2 * 86400000) }],
-      userpackageId: up2._id,
-    },
-    {
-      // Rahul → React Native @ InnovateMind — reviewed
-      jobId: approvedJobs[7]._id, uid: js1._id, cvId: res1._id, companyId: co2._id,
-      applyMessage: '3 React Native apps in production with 50K+ downloads each.',
-      coverLetterId: cl2._id, quickApply: false,
-      status: 'reviewed', actionStatus: 2,
-      statusHistory: [
-        { status: 'applied',  note: 'Application submitted', changedBy: js1._id,  changedAt: new Date(n - 8 * 86400000) },
-        { status: 'reviewed', note: 'Under review',          changedBy: emp2._id, changedAt: new Date(n - 5 * 86400000) },
-      ],
-      resumeView: true, resumeViewedAt: new Date(n - 5 * 86400000), rating: 3,
-      activityLog: [
-        { action: 'apply',         description: 'Application submitted', performedBy: js1._id,  ipAddress: '106.51.0.1',  createdAt: new Date(n - 8 * 86400000) },
-        { action: 'resume_viewed', description: 'Resume viewed',         performedBy: emp2._id, ipAddress: '122.160.0.1', createdAt: new Date(n - 5 * 86400000) },
-      ],
-      userpackageId: up2._id,
-    },
-    {
-      // Sneha → Product Designer @ TechCorp — interview_scheduled
-      jobId: approvedJobs[2]._id, uid: js2._id, cvId: res2._id, companyId: co1._id,
-      applyMessage: 'Product design is my passion. TechCorps design culture deeply resonates with me.',
-      coverLetterId: cl3._id, quickApply: false,
-      status: 'interview_scheduled', actionStatus: 3,
-      statusHistory: [
-        { status: 'applied',             note: 'Applied',                     changedBy: js2._id,  changedAt: new Date(n - 10 * 86400000) },
-        { status: 'reviewed',            note: 'Reviewed',                    changedBy: emp1._id, changedAt: new Date(n - 7 * 86400000) },
-        { status: 'shortlisted',         note: 'Excellent Figma portfolio',   changedBy: emp1._id, changedAt: new Date(n - 5 * 86400000) },
-        { status: 'interview_scheduled', note: 'Design challenge + HR round', changedBy: emp1._id, changedAt: new Date(n - 86400000) },
-      ],
-      resumeView: true, resumeViewedAt: new Date(n - 7 * 86400000), rating: 4,
-      employerNotes: 'NID grad. Excellent Figma portfolio. Strong candidate.',
-      interviewDate: ivDate2,
-      interviewType: 'video',
-      interviewLink: 'https://zoom.us/j/1234567890',
-      interviewNotes: 'Design challenge (1 hr) + HR conversation (30 min).',
+      employerNotes: 'IIT Madras + Razorpay – very strong profile. ATS 91. Shortlisted unanimously. Must move fast.',
+      candidateNotes: 'Top priority company. Very interested in the Product Engineering squad.',
+      interviewDate: ivDate,
+      // interviewType: 'video',
+      interviewLink: 'https://meet.google.com/nxc-sde1-priya',
+      interviewNotes: 'Round 1 – Technical Interview (90 min): 30 min system design (design a job portals notification system), 45 min coding (LeetCode medium), 15 min Q&A. Interviewer: Rajan Pillai (Staff Engineer).',
       interviewScheduledAt: new Date(n - 86400000),
       activityLog: [
-        { action: 'apply',         description: 'Applied',            performedBy: js2._id,  ipAddress: '115.240.0.1', createdAt: new Date(n - 10 * 86400000) },
-        { action: 'resume_viewed', description: 'Resume viewed',      performedBy: emp1._id, ipAddress: '49.205.1.100', createdAt: new Date(n - 7 * 86400000) },
-        { action: 'status_change', description: 'Shortlisted',        performedBy: emp1._id, ipAddress: '49.205.1.100', createdAt: new Date(n - 5 * 86400000) },
-        { action: 'status_change', description: 'Interview scheduled',performedBy: emp1._id, ipAddress: '49.205.1.100', createdAt: new Date(n - 86400000) },
+        { action: 'apply',         description: 'Application submitted via HireHub',  performedBy: jobseeker._id, ipAddress: '49.37.0.1',   createdAt: new Date(n - 6 * 86400000) },
+        { action: 'resume_viewed', description: 'Employer viewed resume',             performedBy: employer._id,  ipAddress: '49.205.1.100', createdAt: new Date(n - 4 * 86400000) },
+        { action: 'status_change', description: 'Shortlisted by Talent team',         performedBy: employer._id,  ipAddress: '49.205.1.100', createdAt: new Date(n - 2 * 86400000) },
+        { action: 'status_change', description: 'Round 1 interview scheduled',         performedBy: employer._id,  ipAddress: '49.205.1.100', createdAt: new Date(n - 86400000) },
       ],
-      userpackageId: up4._id,
+      userpackageId: upJobseeker._id,
     },
+
+    // Application 2: Priya → Data Scientist @ NexaCloud — applied (stretch role)
     {
-      // Sneha → UI/UX Designer @ InnovateMind — applied
-      jobId: approvedJobs[approvedJobs.length - 1]._id, uid: js2._id, cvId: res2._id, companyId: co2._id,
-      applyMessage: 'I love e-commerce design challenges and would be thrilled to join InnovateMind.',
-      quickApply: true, status: 'applied', actionStatus: 1,
-      statusHistory: [{ status: 'applied', note: 'Quick apply', changedBy: js2._id, changedAt: new Date(n - 86400000) }],
-      resumeView: false, rating: 0,
-      activityLog: [{ action: 'apply', description: 'Quick apply', performedBy: js2._id, ipAddress: '115.240.0.1', createdAt: new Date(n - 86400000) }],
-      userpackageId: up4._id,
+      jobId: approvedJobs[2]._id,
+      uid: jobseeker._id,
+      cvId: resume._id,
+      companyId: company._id,
+      applyMessage: 'While my primary stack is full-stack, I have worked extensively with ML APIs and built data pipelines using Python. This role is a stretch goal but one I am actively upskilling for. Happy to discuss.',
+      quickApply: true,
+      status: 'reviewed',
+      actionStatus: 2,
+      statusHistory: [
+        { status: 'applied',  note: 'Quick apply submitted.',      changedBy: jobseeker._id, changedAt: new Date(n - 3 * 86400000) },
+        { status: 'reviewed', note: 'Profile reviewed. Strong eng background but limited ML depth.', changedBy: employer._id, changedAt: new Date(n - 86400000) },
+      ],
+      resumeView: true, resumeViewedAt: new Date(n - 1 * 86400000),
+      rating: 2,
+      employerNotes: 'Good engineer but lacks ML specialisation for Lead DS role. May revisit for ML Eng opening.',
+      activityLog: [
+        { action: 'apply',         description: 'Quick apply submitted',  performedBy: jobseeker._id, ipAddress: '49.37.0.1',   createdAt: new Date(n - 3 * 86400000) },
+        { action: 'resume_viewed', description: 'Resume viewed',          performedBy: employer._id,  ipAddress: '49.205.1.100', createdAt: new Date(n - 86400000) },
+      ],
+      userpackageId: upJobseeker._id,
+    },
+
+    // Application 3: Priya → Senior Product Designer — rejected (wrong profile)
+    {
+      jobId: approvedJobs[3]._id,
+      uid: jobseeker._id,
+      cvId: resume._id,
+      companyId: company._id,
+      applyMessage: 'I have strong collaboration with design teams and basic Figma skills, but I am primarily applying to understand how the design and engineering handoff works at NexaCloud.',
+      quickApply: true,
+      status: 'rejected',
+      actionStatus: 5,
+      statusHistory: [
+        { status: 'applied',  note: 'Quick apply submitted.', changedBy: jobseeker._id, changedAt: new Date(n - 10 * 86400000) },
+        { status: 'reviewed', note: 'Reviewed – Engineering background, not design.',  changedBy: employer._id, changedAt: new Date(n - 8 * 86400000) },
+        { status: 'rejected', note: 'Not a fit for this role — we need a dedicated UX designer, not an engineer with Figma exposure. Encouraged to apply to SDE roles.',  changedBy: employer._id, changedAt: new Date(n - 7 * 86400000) },
+      ],
+      resumeView: true, resumeViewedAt: new Date(n - 8 * 86400000),
+      rating: 1,
+      employerNotes: 'SDE profile, not a product designer. Rejected. Encouraged to apply for full stack role.',
+      activityLog: [
+        { action: 'apply',         description: 'Quick apply submitted',  performedBy: jobseeker._id, ipAddress: '49.37.0.1',   createdAt: new Date(n - 10 * 86400000) },
+        { action: 'resume_viewed', description: 'Resume viewed',          performedBy: employer._id,  ipAddress: '49.205.1.100', createdAt: new Date(n - 8 * 86400000) },
+        { action: 'status_change', description: 'Application rejected',   performedBy: employer._id,  ipAddress: '49.205.1.100', createdAt: new Date(n - 7 * 86400000) },
+      ],
+      userpackageId: upJobseeker._id,
     },
   ]);
-  logger.info('✅ 5 applications');
+  logger.info('✅ 3 applications');
 
   // ═════════════════════════════════════════════════════════════════════════════
-  // 18 · JOB SHORTLIST
+  // 19 · JOB SHORTLIST
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(JobShortlist);
   await JobShortlist.insertMany([
-    { uid: js1._id, jobId: approvedJobs[1]._id, comments: 'DevOps role – looks perfect!',          rate: '5', status: true },
-    { uid: js1._id, jobId: approvedJobs[4]._id, comments: 'Engineering Manager – stretch goal',    rate: '4', status: true },
-    { uid: js1._id, jobId: approvedJobs[3]._id, comments: 'Data Science – interesting stretch',    rate: '4', status: true },
-    { uid: js2._id, jobId: approvedJobs[2]._id, comments: 'Already applied, tracking progress',    rate: '5', status: true },
-    { uid: js2._id, jobId: approvedJobs[approvedJobs.length - 1]._id, comments: 'Part-time option',                       rate: '3', status: true },
+    { uid: jobseeker._id, jobId: approvedJobs[1]._id, comments: 'Fully remote DevOps role – need to brush up on Terraform before applying.', rate: '4', status: true },
+    { uid: jobseeker._id, jobId: approvedJobs[4]._id, comments: 'EM role – great stretch goal for 2 years from now.', rate: '3', status: true },
+    { uid: jobseeker._id, jobId: approvedJobs[5]._id, comments: 'React Native – interesting but not my primary target.', rate: '3', status: true },
   ]);
   logger.info('✅ Job shortlists');
 
   // ═════════════════════════════════════════════════════════════════════════════
-  // 19 · JOB ALERTS
+  // 20 · JOB ALERTS
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(JobAlert);
   await JobAlert.insertMany([
-    { uid: js1._id, categoryId: itCat, name: 'Full Stack Jobs – Bangalore', contactEmail: 'jobseeker@hirehub.io', city: 'Bangalore', keywords: 'full stack react nodejs typescript', alertType: 1, status: 1, sendTime: new Date(n + 86400000), userpackageId: up2._id },
-    { uid: js1._id, categoryId: itCat, name: 'Remote DevOps Roles', contactEmail: 'jobseeker@hirehub.io', keywords: 'devops aws kubernetes remote', alertType: 2, status: 1, sendTime: new Date(n + 7 * 86400000), userpackageId: up2._id },
-    { uid: js2._id, categoryId: designCat, name: 'UI/UX Designer – Mumbai', contactEmail: 'sneha.jobseeker@hirehub.io', city: 'Mumbai', keywords: 'ui ux designer figma product design', alertType: 1, status: 1, sendTime: new Date(n + 86400000), userpackageId: up4._id },
+    {
+      uid: jobseeker._id, categoryId: itCat,
+      name: 'Senior Full Stack Roles – Bengaluru / Remote',
+      contactEmail: 'jobseeker@hirehub.io',
+      city: 'Bengaluru',
+      keywords: 'senior full stack developer react nodejs typescript hybrid remote',
+      alertType: 1, status: 1, sendTime: new Date(n + 86400000),
+      userpackageId: upJobseeker._id,
+    },
+    {
+      uid: jobseeker._id, categoryId: itCat,
+      name: 'Remote SDE Roles – Senior Level',
+      contactEmail: 'jobseeker@hirehub.io',
+      keywords: 'senior software engineer remote typescript nodejs graphql',
+      alertType: 2, status: 1, sendTime: new Date(n + 7 * 86400000),
+      userpackageId: upJobseeker._id,
+    },
   ]);
   logger.info('✅ Job alerts');
 
   // ═════════════════════════════════════════════════════════════════════════════
-  // 20 · FOLLOWERS
+  // 21 · FOLLOWERS
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(Follower);
   await Follower.insertMany([
-    { followerId: js1._id, companyId: co1._id },
-    { followerId: js1._id, companyId: co2._id },
-    { followerId: js2._id, companyId: co1._id },
+    { followerId: jobseeker._id, companyId: company._id },
   ]);
   logger.info('✅ Followers');
 
   // ═════════════════════════════════════════════════════════════════════════════
-  // 21 · EMPLOYER VIEW RESUME
+  // 22 · EMPLOYER VIEW RESUME
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(EmployerViewResume);
   await EmployerViewResume.insertMany([
-    { uid: emp1._id, resumeId: res1._id, profileId: js1._id, status: true, userpackageId: up1._id },
-    { uid: emp1._id, resumeId: res2._id, profileId: js2._id, status: true, userpackageId: up1._id },
-    { uid: emp2._id, resumeId: res1._id, profileId: js1._id, status: true, userpackageId: up3._id },
+    { uid: employer._id, resumeId: resume._id, profileId: jobseeker._id, status: true, userpackageId: upEmployer._id },
   ]);
   logger.info('✅ Employer resume views');
 
   // ═════════════════════════════════════════════════════════════════════════════
-  // 22 · SAVED SEARCHES
+  // 23 · SAVED SEARCHES
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(SavedSearch);
   await SavedSearch.insertMany([
-    { uid: js1._id,  searchName: 'React Jobs Bangalore',    status: true, searchParams: { keyword: 'react', city: 'Bangalore' },               userpackageId: up2._id },
-    { uid: js1._id,  searchName: 'Remote Senior Roles',     status: true, searchParams: { workplaceType: 'remote', experience: 4 },             userpackageId: up2._id },
-    { uid: emp1._id, searchName: 'Senior Developers India', status: true, searchParams: { keyword: 'senior developer', experience: 4 },         userpackageId: up1._id },
-    { uid: emp1._id, searchName: 'UI/UX Designers Mumbai',  status: true, searchParams: { keyword: 'ui ux designer', city: 'Mumbai' },          userpackageId: up1._id },
+    { uid: jobseeker._id,  searchName: 'Senior React Jobs Bengaluru',    status: true, searchParams: { keyword: 'react typescript', city: 'Bengaluru', experience: 4 }, userpackageId: upJobseeker._id },
+    { uid: jobseeker._id,  searchName: 'Remote Senior Node.js Roles',    status: true, searchParams: { keyword: 'nodejs senior', workplaceType: 'remote' },             userpackageId: upJobseeker._id },
+    { uid: employer._id,   searchName: 'Senior Full Stack Candidates',   status: true, searchParams: { keyword: 'senior full stack react', experience: 4 },             userpackageId: upEmployer._id },
+    { uid: employer._id,   searchName: 'DevOps Engineers India',         status: true, searchParams: { keyword: 'devops kubernetes aws', experience: 3 },               userpackageId: upEmployer._id },
   ]);
   logger.info('✅ Saved searches');
 
   // ═════════════════════════════════════════════════════════════════════════════
-  // 23 · FOLDERS + FOLDER RESUMES
+  // 24 · FOLDERS + FOLDER RESUMES
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(Folder, FolderResume);
   const [fol1, fol2] = await Folder.insertMany([
-    { uid: emp1._id, jobId: approvedJobs[0]._id, name: 'Senior Full Stack – Shortlisted', alias: 'sfs-shortlisted', description: 'Shortlisted for Senior Full Stack role', status: true },
-    { uid: emp1._id, global: true, name: 'Top Candidates 2025', alias: 'top-candidates-2025', description: 'Global pool of top candidates', status: true },
+    { uid: employer._id, jobId: approvedJobs[0]._id, name: 'Senior Full Stack – Round 1', alias: 'sfs-round-1', description: 'Shortlisted for Round 1 technical interview', status: true },
+    { uid: employer._id, global: true, name: 'Top Candidates Pool – 2025', alias: 'top-candidates-2025', description: 'Global shortlist of exceptional candidates across all roles', status: true },
   ]);
   await FolderResume.insertMany([
-    { uid: emp1._id, jobId: approvedJobs[0]._id, resumeId: res1._id, folderId: fol1._id },
-    { uid: emp1._id, resumeId: res1._id, folderId: fol2._id },
-    { uid: emp1._id, resumeId: res2._id, folderId: fol2._id },
+    { uid: employer._id, jobId: approvedJobs[0]._id, resumeId: resume._id, folderId: fol1._id },
+    { uid: employer._id, resumeId: resume._id, folderId: fol2._id },
   ]);
   logger.info('✅ Folders + folder resumes');
 
   // ═════════════════════════════════════════════════════════════════════════════
-  // 24 · CONVERSATIONS + MESSAGES
+  // 25 · CONVERSATIONS + MESSAGES
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(Conversation, Message);
-
   const conv1 = await new Conversation({
-    participants: [emp1._id, js1._id],
+    participants: [employer._id, jobseeker._id],
     jobId: approvedJobs[0]._id,
-    employerId: emp1._id, jobseekerId: js1._id,
-    lastMessageText: 'Here is the video call link. Good luck!',
+    employerId: employer._id,
+    jobseekerId: jobseeker._id,
+    lastMessageText: 'All the best Priya! The interviewer will reach out via Google Meet link 5 min before the slot.',
     lastMessageAt: new Date(n - 1800000),
-    unreadCount: new Map([[js1._id.toString(), 1]]),
+    unreadCount: new Map([[jobseeker._id.toString(), 1]]),
   }).save();
 
-  const msgs1 = await Message.insertMany([
+  const msgs = await Message.insertMany([
     {
-      conversationId: conv1._id, sendBy: emp1._id, employerId: emp1._id, jobseekerId: js1._id, jobId: approvedJobs[0]._id,
-      subject: 'Re: Application – Senior Full Stack Developer',
-      message: 'Hi Rahul! We reviewed your profile and are very impressed. We would love to schedule a 60-minute technical interview. Are you available this Thursday at 3 PM IST?',
-      isRead: true, readBy: [js1._id], readAt: new Date(n - 7200000),
+      conversationId: conv1._id,
+      sendBy: employer._id, employerId: employer._id, jobseekerId: jobseeker._id, jobId: approvedJobs[0]._id,
+      subject: 'Interview Invite – Senior Full Stack Developer | NexaCloud India',
+      message: "Hi Priya! 👋 I'm Arjun from NexaCloud's Talent team. We reviewed your application and were really impressed by your Razorpay and Freshworks experience, especially the micro-frontend work and the email-threading engine you built at scale. We'd love to have you for a Round 1 Technical Interview. Are you available this Thursday, 15 Feb at 11:00 AM IST? It'll be ~90 minutes on Google Meet.",
+      isRead: true, readBy: [jobseeker._id], readAt: new Date(n - 7200000),
       status: true, createdAt: new Date(n - 10800000),
     },
     {
-      conversationId: conv1._id, sendBy: js1._id, employerId: emp1._id, jobseekerId: js1._id, jobId: approvedJobs[0]._id,
-      message: 'Hi Priya! Thank you so much — really excited! Thursday 3 PM works perfectly. Looking forward to it!',
-      isRead: true, readBy: [emp1._id], readAt: new Date(n - 3600000),
+      conversationId: conv1._id,
+      sendBy: jobseeker._id, employerId: employer._id, jobseekerId: jobseeker._id, jobId: approvedJobs[0]._id,
+      message: "Hi Arjun! Thank you so much — really thrilled to hear this! 🎉 Thursday 15 Feb at 11:00 AM IST works perfectly for me. Looking forward to the conversation. Could you let me know who I'll be speaking with and what areas to prepare for? Thanks again!",
+      isRead: true, readBy: [employer._id], readAt: new Date(n - 3600000),
       status: true, createdAt: new Date(n - 7200000),
     },
     {
-      conversationId: conv1._id, sendBy: emp1._id, employerId: emp1._id, jobseekerId: js1._id, jobId: approvedJobs[0]._id,
-      message: 'Here is the video call link. Good luck! https://meet.google.com/abc-defg-hij — Interview is with our Platform Team Lead.',
-      isRead: false, status: true, createdAt: new Date(n - 1800000),
+      conversationId: conv1._id,
+      sendBy: employer._id, employerId: employer._id, jobseekerId: jobseeker._id, jobId: approvedJobs[0]._id,
+      message: "Great! You'll be speaking with Rajan Pillai (Staff Engineer, Platform Engineering). The interview will cover:\n\n1. System Design (30 min) — design a scalable notification system\n2. Coding (45 min) — 2 LeetCode-style problems (Medium difficulty)\n3. Q&A (15 min)\n\nMeet link: https://meet.google.com/nxc-sde1-priya\n\nAll the best Priya! The interviewer will reach out via Google Meet link 5 min before the slot.",
+      isRead: false,
+      status: true, createdAt: new Date(n - 1800000),
     },
   ]);
-  await Conversation.findByIdAndUpdate(conv1._id, { lastMessage: msgs1[2]._id });
-
-  const conv2 = await new Conversation({
-    participants: [emp2._id, js2._id],
-    jobId: approvedJobs[approvedJobs.length - 1]._id,
-    employerId: emp2._id, jobseekerId: js2._id,
-    lastMessageText: 'Please share your Figma portfolio link.',
-    lastMessageAt: new Date(n - 14400000),
-    unreadCount: new Map([[js2._id.toString(), 1]]),
-  }).save();
-
-  const msg2 = await Message.create({
-    conversationId: conv2._id, sendBy: emp2._id, employerId: emp2._id, jobseekerId: js2._id, jobId: approvedJobs[approvedJobs.length - 1]._id,
-    subject: 'Re: UI/UX Designer Application',
-    message: 'Hi Sneha! Great profile. Before we proceed, could you please share your Figma portfolio link? We would love to review some of your recent work.',
-    isRead: false, status: true, createdAt: new Date(n - 14400000),
-  });
-  await Conversation.findByIdAndUpdate(conv2._id, { lastMessage: msg2._id });
-
-  logger.info('✅ 2 conversations + 4 messages');
+  await Conversation.findByIdAndUpdate(conv1._id, { lastMessage: msgs[2]._id });
+  logger.info('✅ 1 conversation + 3 messages');
 
   // ═════════════════════════════════════════════════════════════════════════════
-  // 25 · NOTIFICATIONS
+  // 26 · NOTIFICATIONS
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(Notification);
   await Notification.insertMany([
-    // Employer 1
-    { recipientId: emp1._id, senderId: js1._id,  type: 'application_received', title: 'New Application – Senior Full Stack',   message: 'Rahul Verma applied for Senior Full Stack Developer.',             refModel: 'Application', refId: app1._id, isRead: false, channels: { inApp: true, email: true }, emailSent: true, actionUrl: `/employer/applications/${app1._id}`, actionText: 'View Application' },
-    { recipientId: emp1._id, senderId: js1._id,  type: 'application_received', title: 'New Application – Data Scientist',       message: 'Rahul Verma applied for Data Scientist – NLP & LLMs.',            refModel: 'Application', refId: app2._id, isRead: true, readAt: new Date(n - 3600000), channels: { inApp: true, email: true }, emailSent: true, actionUrl: `/employer/applications/${app2._id}`, actionText: 'View Application' },
-    { recipientId: emp1._id, senderId: js2._id,  type: 'application_received', title: 'New Application – Product Designer',     message: 'Sneha Kapoor applied for Product Designer (UI/UX).',              refModel: 'Application', refId: app4._id, isRead: true, readAt: new Date(n - 7200000), channels: { inApp: true, email: true }, emailSent: true, actionUrl: `/employer/applications/${app4._id}`, actionText: 'View Application' },
-    { recipientId: emp1._id,                     type: 'package_expiry',        title: 'Package Expires Soon',                   message: 'Your Employer Pro package expires in 7 days. Renew to keep posting.', refModel: 'Package', isRead: false, channels: { inApp: true, email: true }, emailSent: true, actionUrl: '/employer/packages', actionText: 'Renew Package' },
-    // Jobseeker 1
-    { recipientId: js1._id,  senderId: emp1._id, type: 'shortlisted',          title: 'You\'ve been Shortlisted! 🎉',            message: 'TechCorp Solutions shortlisted you for Senior Full Stack Developer.', refModel: 'Application', refId: app1._id, isRead: false, channels: { inApp: true, email: true }, emailSent: true, actionUrl: `/jobseeker/applications/${app1._id}`, actionText: 'View Details' },
-    { recipientId: js1._id,  senderId: emp1._id, type: 'interview_scheduled',  title: 'Interview Scheduled',                    message: `Your interview for Senior Full Stack at TechCorp is on ${ivDate1.toDateString()}.`, refModel: 'Application', refId: app1._id, isRead: false, channels: { inApp: true, email: true }, emailSent: true, actionUrl: `/jobseeker/applications/${app1._id}`, actionText: 'View Interview' },
-    { recipientId: js1._id,                      type: 'job_alert',             title: 'New Jobs Matching Your Alert',           message: '4 new jobs match "Full Stack Jobs – Bangalore". Check them out!',  isRead: true, readAt: new Date(n - 7200000), channels: { inApp: true, email: true }, emailSent: true, actionUrl: '/jobs?keyword=full+stack&city=Bangalore', actionText: 'View Jobs' },
-    { recipientId: js1._id,  senderId: emp1._id, type: 'message_received',     title: 'New Message from TechCorp',              message: 'Priya Mehta sent you a message about your application.',           refModel: 'Message', refId: msgs1[0]._id, isRead: true, readAt: new Date(n - 3600000), channels: { inApp: true }, actionUrl: `/jobseeker/messages/${conv1._id}`, actionText: 'Read Message' },
-    // Jobseeker 2
-    { recipientId: js2._id,  senderId: emp1._id, type: 'interview_scheduled',  title: 'Interview Scheduled! 🎉',                message: 'TechCorp scheduled your interview for Product Designer.',          refModel: 'Application', refId: app4._id, isRead: false, channels: { inApp: true, email: true }, emailSent: true, actionUrl: `/jobseeker/applications/${app4._id}`, actionText: 'View Details' },
-    { recipientId: js2._id,  senderId: emp2._id, type: 'message_received',     title: 'New Message from InnovateMind',          message: 'Vikram Singh sent you a message about your UI/UX application.',   refModel: 'Message', refId: msg2._id, isRead: false, channels: { inApp: true }, actionUrl: `/jobseeker/messages/${conv2._id}`, actionText: 'Read Message' },
-    // Admin
-    { recipientId: admin._id,                    type: 'system',                title: 'New Employer Registration',              message: 'InnovateMind Digital registered and is pending review.',           refModel: 'Company', refId: co2._id, isRead: false, channels: { inApp: true }, actionUrl: `/admin/companies/${co2._id}`, actionText: 'Review Company' },
-    { recipientId: admin._id,                    type: 'payment_success',       title: 'Package Purchased – ₹2,999',             message: 'Priya Mehta purchased Employer Pro.',                             refModel: 'Invoice', refId: inv1._id, isRead: true, readAt: new Date(n - 5 * 86400000), channels: { inApp: true }, actionUrl: `/admin/invoices/${inv1._id}`, actionText: 'View Invoice' },
+    // ── Employer notifications ────────────────────────────────────────────────
+    {
+      recipientId: employer._id, senderId: jobseeker._id,
+      type: 'application_received',
+      title: 'New Application – Senior Full Stack Developer',
+      message: 'Priya Nair (IIT Madras · Razorpay · 5 yrs) applied for Senior Full Stack Developer.',
+      refModel: 'Application', refId: app1._id,
+      isRead: false,
+      channels: { inApp: true, email: true }, emailSent: true,
+      actionUrl: `/employer/applications/${app1._id}`, actionText: 'Review Application',
+    },
+    {
+      recipientId: employer._id, senderId: jobseeker._id,
+      type: 'application_received',
+      title: 'New Application – Lead Data Scientist',
+      message: 'Priya Nair applied for Lead Data Scientist – NLP & Generative AI (stretch application).',
+      refModel: 'Application', refId: app2._id,
+      isRead: true, readAt: new Date(n - 3600000),
+      channels: { inApp: true, email: true }, emailSent: true,
+      actionUrl: `/employer/applications/${app2._id}`, actionText: 'Review Application',
+    },
+    {
+      recipientId: employer._id,
+      type: 'package_expiry',
+      title: '⚠️ Employer Growth Package Expiring in 7 Days',
+      message: 'Your Employer Growth package expires on ' + new Date(n + 55 * 86400000).toLocaleDateString('en-IN') + '. Renew now to keep your job postings active and resume search quota.',
+      refModel: 'Package',
+      isRead: false,
+      channels: { inApp: true, email: true }, emailSent: true,
+      actionUrl: '/employer/packages', actionText: 'Renew Package',
+    },
+    {
+      recipientId: employer._id,
+      type: 'payment_success',
+      title: '✅ Payment Confirmed – ₹2,999',
+      message: 'Your payment for Employer Growth package has been confirmed. 50 job posts and 999 resume views unlocked.',
+      refModel: 'Invoice', refId: inv1._id,
+      isRead: true, readAt: new Date(n - 4 * 86400000),
+      channels: { inApp: true }, actionUrl: `/employer/invoices/${inv1._id}`, actionText: 'View Invoice',
+    },
+
+    // ── Jobseeker notifications ───────────────────────────────────────────────
+    {
+      recipientId: jobseeker._id, senderId: employer._id,
+      type: 'shortlisted',
+      title: '🌟 You have been Shortlisted at NexaCloud India!',
+      message: 'NexaCloud India shortlisted you for Senior Full Stack Developer. You are one step closer!',
+      refModel: 'Application', refId: app1._id,
+      isRead: false,
+      channels: { inApp: true, email: true }, emailSent: true,
+      actionUrl: `/jobseeker/applications/${app1._id}`, actionText: 'View Application',
+    },
+    {
+      recipientId: jobseeker._id, senderId: employer._id,
+      type: 'interview_scheduled',
+      title: '📅 Interview Scheduled – NexaCloud India',
+      message: `Your Round 1 Technical Interview for Senior Full Stack Developer at NexaCloud India is scheduled for ${ivDate.toLocaleString('en-IN', { dateStyle: 'long', timeStyle: 'short' })} IST.`,
+      refModel: 'Application', refId: app1._id,
+      isRead: false,
+      channels: { inApp: true, email: true }, emailSent: true,
+      actionUrl: `/jobseeker/applications/${app1._id}`, actionText: 'View Interview Details',
+    },
+    {
+      recipientId: jobseeker._id,
+      type: 'rejected',
+      title: 'Application Update – Senior Product Designer',
+      message: 'NexaCloud India reviewed your application for Senior Product Designer and decided to move forward with other candidates at this time.',
+      refModel: 'Application', refId: app3._id,
+      isRead: true, readAt: new Date(n - 6 * 86400000),
+      channels: { inApp: true, email: true }, emailSent: true,
+      actionUrl: `/jobseeker/applications/${app3._id}`, actionText: 'View Application',
+    },
+    {
+      recipientId: jobseeker._id,
+      type: 'job_alert',
+      title: '🔔 5 New Jobs Match Your Alert',
+      message: '5 new Senior Full Stack (React + Node.js) jobs in Bengaluru match your "Senior Full Stack Roles" alert.',
+      isRead: false,
+      channels: { inApp: true, email: true }, emailSent: true,
+      actionUrl: '/jobs?keyword=senior+full+stack&city=Bengaluru', actionText: 'View Jobs',
+    },
+    {
+      recipientId: jobseeker._id, senderId: employer._id,
+      type: 'message_received',
+      title: '💬 New Message from NexaCloud India',
+      message: 'Arjun Mehta sent you interview details for Senior Full Stack Developer role.',
+      refModel: 'Message', refId: msgs[2]._id,
+      isRead: false,
+      channels: { inApp: true }, actionUrl: `/jobseeker/messages/${conv1._id}`, actionText: 'Read Message',
+    },
+    {
+      recipientId: jobseeker._id,
+      type: 'payment_success',
+      title: '✅ Jobseeker Premium Activated',
+      message: 'Your Jobseeker Premium package (90 days) is now active. You can now apply to 999 jobs and create up to 20 resumes.',
+      refModel: 'Invoice', refId: inv2._id,
+      isRead: true, readAt: new Date(n - 2 * 86400000),
+      channels: { inApp: true, email: true }, emailSent: true,
+      actionUrl: '/jobseeker/packages', actionText: 'View Package',
+    },
+
+    // ── Admin / Superadmin notifications ──────────────────────────────────────
+    {
+      recipientId: admin._id,
+      type: 'system',
+      title: 'New Company Awaiting Verification',
+      message: 'NexaCloud India Pvt Ltd has submitted verification documents. Please review within 24 hours.',
+      refModel: 'Company', refId: company._id,
+      isRead: false,
+      channels: { inApp: true }, actionUrl: `/admin/companies/${company._id}`, actionText: 'Review Company',
+    },
+    {
+      recipientId: admin._id,
+      type: 'payment_success',
+      title: 'New Package Purchase – ₹2,999',
+      message: 'Arjun Mehta (NexaCloud India) purchased Employer Growth package.',
+      refModel: 'Invoice', refId: inv1._id,
+      isRead: true, readAt: new Date(n - 4 * 86400000),
+      channels: { inApp: true }, actionUrl: `/admin/invoices/${inv1._id}`, actionText: 'View Invoice',
+    },
+    {
+      recipientId: superAdmin._id,
+      type: 'system',
+      title: 'Admin Dashboard Daily Summary',
+      message: 'Today: 1 new employer registered, 3 jobs pending review, 2 new invoices totalling ₹3,798.',
+      isRead: false,
+      channels: { inApp: true }, actionUrl: '/admin/dashboard', actionText: 'View Dashboard',
+    },
   ]);
-  logger.info('✅ 12 notifications');
+  logger.info('✅ 13 notifications');
 
   // ═════════════════════════════════════════════════════════════════════════════
-  // 26 · ACTIVITY LOG
+  // 27 · ACTIVITY LOG
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(ActivityLog);
   await ActivityLog.insertMany([
-    { uid: admin._id,  performedBy: admin._id,  description: 'Admin logged in',                          action: 'login',          ipAddress: '127.0.0.1',    browser: 'Chrome',  os: 'Windows' },
-    { uid: admin._id,  performedBy: admin._id,  description: 'TechCorp verified',                         action: 'company_verify', ipAddress: '127.0.0.1',    referenceFor: 'Company',      referenceId: co1._id },
-    { uid: admin._id,  performedBy: admin._id,  description: 'InnovateMind verified',                     action: 'company_verify', ipAddress: '127.0.0.1',    referenceFor: 'Company',      referenceId: co2._id },
-    { uid: emp1._id,   performedBy: emp1._id,   description: 'Employer logged in',                        action: 'login',          ipAddress: '49.205.1.100', browser: 'Chrome',  os: 'macOS' },
-    { uid: emp1._id,   performedBy: emp1._id,   description: 'Posted: Senior Full Stack Developer',        action: 'job_post',       ipAddress: '49.205.1.100', referenceFor: 'Job', referenceId: jobs[0]._id },
-    { uid: emp1._id,   performedBy: emp1._id,   description: 'Posted: DevOps Engineer',                   action: 'job_post',       ipAddress: '49.205.1.100', referenceFor: 'Job', referenceId: jobs[1]._id },
-    { uid: emp1._id,   performedBy: emp1._id,   description: 'Purchased Employer Pro package',             action: 'package_buy',    ipAddress: '49.205.1.100', referenceFor: 'Invoice', referenceId: inv1._id },
-    { uid: js1._id,    performedBy: js1._id,    description: 'Jobseeker logged in',                       action: 'login',          ipAddress: '106.51.0.1',   browser: 'Chrome',  os: 'Android' },
-    { uid: js1._id,    performedBy: js1._id,    description: 'Applied: Senior Full Stack Developer',       action: 'job_apply',      ipAddress: '106.51.0.1',   referenceFor: 'Application', referenceId: app1._id },
-    { uid: js1._id,    performedBy: js1._id,    description: 'Applied: Data Scientist – NLP & LLMs',      action: 'job_apply',      ipAddress: '106.51.0.1',   referenceFor: 'Application', referenceId: app2._id },
-    { uid: js1._id,    performedBy: js1._id,    description: 'Saved job: DevOps Engineer',                 action: 'job_save',       ipAddress: '106.51.0.1',   referenceFor: 'Job', referenceId: jobs[1]._id },
-    { uid: js1._id,    performedBy: js1._id,    description: 'Purchased Jobseeker Premium',                action: 'package_buy',    ipAddress: '106.51.0.1',   referenceFor: 'Invoice', referenceId: inv2._id },
-    { uid: js2._id,    performedBy: js2._id,    description: 'Jobseeker Sneha logged in',                  action: 'login',          ipAddress: '115.240.0.1',  browser: 'Safari',  os: 'iOS' },
-    { uid: js2._id,    performedBy: js2._id,    description: 'Applied: Product Designer (UI/UX)',          action: 'job_apply',      ipAddress: '115.240.0.1',  referenceFor: 'Application', referenceId: app4._id },
-    { uid: emp2._id,   performedBy: emp2._id,   description: 'Employer Vikram logged in',                  action: 'login',          ipAddress: '122.160.0.1',  browser: 'Firefox', os: 'Windows' },
+    { uid: superAdmin._id,  performedBy: superAdmin._id, description: 'Superadmin logged in',                         action: 'login',          ipAddress: '127.0.0.1',    browser: 'Chrome', os: 'macOS' },
+    { uid: admin._id,       performedBy: admin._id,      description: 'Admin logged in',                              action: 'login',          ipAddress: '103.21.0.1',   browser: 'Chrome', os: 'Windows' },
+    { uid: admin._id,       performedBy: admin._id,      description: 'Admin verified NexaCloud India',               action: 'company_verify', ipAddress: '103.21.0.1',   referenceFor: 'Company',      referenceId: company._id },
+    { uid: admin._id,       performedBy: admin._id,      description: `Admin approved job: ${jobs[0].title}`,         action: 'job_approve',    ipAddress: '103.21.0.1',   referenceFor: 'Job', referenceId: jobs[0]._id },
+    { uid: admin._id,       performedBy: admin._id,      description: `Admin approved job: ${jobs[1].title}`,         action: 'job_approve',    ipAddress: '103.21.0.1',   referenceFor: 'Job', referenceId: jobs[1]._id },
+    { uid: employer._id,    performedBy: employer._id,   description: 'Employer Arjun Mehta logged in',               action: 'login',          ipAddress: '49.205.1.100', browser: 'Chrome', os: 'macOS' },
+    { uid: employer._id,    performedBy: employer._id,   description: 'Created company: NexaCloud India',             action: 'company_create', ipAddress: '49.205.1.100', referenceFor: 'Company', referenceId: company._id },
+    { uid: employer._id,    performedBy: employer._id,   description: `Posted job: ${jobs[0].title}`,                 action: 'job_post',       ipAddress: '49.205.1.100', referenceFor: 'Job', referenceId: jobs[0]._id },
+    { uid: employer._id,    performedBy: employer._id,   description: `Posted job: ${jobs[1].title}`,                 action: 'job_post',       ipAddress: '49.205.1.100', referenceFor: 'Job', referenceId: jobs[1]._id },
+    { uid: employer._id,    performedBy: employer._id,   description: `Posted job: ${jobs[2].title}`,                 action: 'job_post',       ipAddress: '49.205.1.100', referenceFor: 'Job', referenceId: jobs[2]._id },
+    { uid: employer._id,    performedBy: employer._id,   description: 'Purchased Employer Growth package – ₹2,999',   action: 'package_buy',    ipAddress: '49.205.1.100', referenceFor: 'Invoice', referenceId: inv1._id },
+    { uid: employer._id,    performedBy: employer._id,   description: 'Shortlisted Priya Nair for Senior Full Stack', action: 'status_change',  ipAddress: '49.205.1.100', referenceFor: 'Application', referenceId: app1._id },
+    { uid: jobseeker._id,   performedBy: jobseeker._id,  description: 'Jobseeker Priya Nair logged in',               action: 'login',          ipAddress: '49.37.0.1',    browser: 'Chrome', os: 'macOS' },
+    { uid: jobseeker._id,   performedBy: jobseeker._id,  description: `Applied: ${jobs[0].title} at NexaCloud`,       action: 'job_apply',      ipAddress: '49.37.0.1',    referenceFor: 'Application', referenceId: app1._id },
+    { uid: jobseeker._id,   performedBy: jobseeker._id,  description: 'Purchased Jobseeker Premium – ₹799',           action: 'package_buy',    ipAddress: '49.37.0.1',    referenceFor: 'Invoice', referenceId: inv2._id },
+    { uid: jobseeker._id,   performedBy: jobseeker._id,  description: `Saved job: ${jobs[1].title}`,                  action: 'job_save',       ipAddress: '49.37.0.1',    referenceFor: 'Job', referenceId: jobs[1]._id },
+    { uid: jobseeker._id,   performedBy: jobseeker._id,  description: 'Created resume: Senior Full Stack Developer',  action: 'resume_create',  ipAddress: '49.37.0.1',    referenceFor: 'Resume', referenceId: resume._id },
+    { uid: jobseeker._id,   performedBy: jobseeker._id,  description: 'Followed NexaCloud India',                     action: 'company_follow', ipAddress: '49.37.0.1',    referenceFor: 'Company', referenceId: company._id },
   ]);
   logger.info('✅ Activity logs');
 
   // ═════════════════════════════════════════════════════════════════════════════
-  // 27 · REPORTS
+  // 28 · REPORTS
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(Report);
   await Report.insertMany([
-    { reportedBy: js1._id, refModel: 'Job', refId: approvedJobs[7]._id, reason: 'Misleading salary range', description: 'Salary in listing differs from what was communicated during phone screen.', status: 'pending' },
-    { reportedBy: js2._id, refModel: 'Company', refId: co2._id, reason: 'No response to applications', description: 'Applied 3 weeks ago with follow-ups — zero response.', status: 'reviewed', reviewedBy: admin._id, reviewNote: 'Contacted company. Informed to respond within 48 hours.' },
+    {
+      reportedBy: jobseeker._id,
+      refModel: 'Job', refId: approvedJobs[5]._id,
+      reason: 'Misleading job description',
+      description: 'The job listing mentions "2 years experience" but the HR screening call asked for 4+ years. The salary range shown on the listing (₹10–18 LPA) was also very different from what was discussed in the call (₹6–9 LPA).',
+      status: 'pending',
+    },
   ]);
   logger.info('✅ Reports');
 
   // ═════════════════════════════════════════════════════════════════════════════
-  // 28 · SYSTEM ERRORS
+  // 29 · SYSTEM ERRORS
   // ═════════════════════════════════════════════════════════════════════════════
-  await wipe(SystemError);
   await SystemError.insertMany([
-    { error: 'MongoServerError: E11000 duplicate key – hirehub.applications index: jobId_1_uid_1', isView: true },
-    { uid: emp1._id, error: 'CloudinaryError: File size exceeds maximum allowed (10MB)', isView: false },
+    {
+      error: 'MongoServerError: E11000 duplicate key error – hirehub.applications index: jobId_1_uid_1 dup key: { jobId: ObjectId("..."), uid: ObjectId("...") }',
+      isView: true,
+    },
+    {
+      uid: employer._id,
+      error: 'CloudinaryError: Payload too large – file size 12.3 MB exceeds maximum allowed 10 MB for company logo upload.',
+      isView: false,
+    },
+    {
+      error: 'Redis ECONNREFUSED – Unable to connect to Redis at redis://localhost:6379. Falling back to in-memory cache. Check REDIS_URL in .env.',
+      isView: false,
+    },
   ]);
   logger.info('✅ System errors');
 
   // ═════════════════════════════════════════════════════════════════════════════
+  // 🎉 DONE
+  // ═════════════════════════════════════════════════════════════════════════════
   logger.info('');
-  logger.info('🎉 ══════════════════════════════════════');
-  logger.info('🎉  FULL SEED COMPLETE');
-  logger.info('🎉 ══════════════════════════════════════');
+  logger.info('🎉 ══════════════════════════════════════════════════════════');
+  logger.info('🎉  FULL REALISTIC SEED COMPLETE');
+  logger.info('🎉 ══════════════════════════════════════════════════════════');
   logger.info('');
-  logger.info('📋  Login credentials  (password: Pass@123456)');
-  logger.info('    👑 Admin       → admin@hirehub.io');
-  logger.info('    🏢 Employer 1  → employer@hirehub.io         (TechCorp Solutions, Pro pkg)');
-  logger.info('    🏢 Employer 2  → vikram.employer@hirehub.io  (InnovateMind Digital, Basic pkg)');
-  logger.info('    👤 Jobseeker 1 → jobseeker@hirehub.io         (Rahul Verma – Full Stack Dev, Premium pkg)');
-  logger.info('    👤 Jobseeker 2 → sneha.jobseeker@hirehub.io   (Sneha Kapoor – UI/UX Designer, Free pkg)');
+  logger.info('📋  Login Credentials  (password: Pass@123456)');
+  logger.info('    👑 Superadmin → superadmin@hirehub.io  (Rohan Kapoor)');
+  logger.info('    🛡️  Admin      → admin@hirehub.io       (Kavya Sharma)');
+  logger.info('    🏢 Employer   → employer@hirehub.io     (Arjun Mehta – NexaCloud India, Growth pkg)');
+  logger.info('    👤 Jobseeker  → jobseeker@hirehub.io    (Priya Nair – Senior SDE, Premium pkg)');
+  logger.info('');
+  logger.info('📊  What was seeded:');
+  logger.info('    • 8 currencies, 12 parent categories, sub-categories');
+  logger.info('    • 6 job types, 10 career levels, 8 education levels, 5 salary types');
+  logger.info('    • 8 countries, 11 states, 18 cities');
+  logger.info('    • 36 tags, 7 packages, 1 bank_details setting');
+  logger.info('    • 4 users (superadmin, admin, employer, jobseeker)');
+  logger.info('    • 2 user packages + 2 invoices + 2 transaction logs');
+  logger.info('    • 1 company (NexaCloud India) with gallery, verification, socials');
+  logger.info('    • 10 departments');
+  logger.info('    • 10 jobs (8 approved, 1 pending, 1 draft) – realistic descriptions');
+  logger.info('    • 1 resume (Priya Nair – ATS 91%, full work history)');
+  logger.info('    • 2 cover letters');
+  logger.info('    • 3 applications (shortlisted/interview_scheduled, reviewed, rejected)');
+  logger.info('    • 3 job shortlists, 2 job alerts, 1 follower');
+  logger.info('    • 1 employer resume view, 4 saved searches');
+  logger.info('    • 2 folders + 2 folder resumes');
+  logger.info('    • 1 conversation + 3 messages (realistic interview invite thread)');
+  logger.info('    • 13 notifications (employer + jobseeker + admin + superadmin)');
+  logger.info('    • 18 activity log entries, 1 report, 3 system errors');
   logger.info('');
 
   await mongoose.disconnect();
