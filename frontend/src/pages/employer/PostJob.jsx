@@ -419,18 +419,40 @@ export default function EmpPostJob() {
 
         {/* ── Submit ─────────────────────────────────────────────────────── */}
         <div className="flex items-center gap-3 pb-8">
-          <button type="button" onClick={() => navigate(-1)} className="btn-secondary px-8">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="btn-secondary px-8"
+          >
             Cancel
           </button>
-          <button type="submit" disabled={mutation.isPending || (!isEdit && !hasPackage)}
-            className="btn-primary px-8">
-            {mutation.isPending ? (
-              <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-              </svg>
-            ) : <Save size={15} />}
-            {mutation.isPending ? 'Saving...' : isEdit ? 'Update Job' : 'Post Job'}
+
+          {/* Save Draft */}
+          <button
+            type="button"
+            disabled={mutation.isPending}
+            onClick={() =>
+              handleSubmit((data) =>
+                onSubmit({ ...data, status: 'draft' })
+              )()
+            }
+            className="btn-secondary px-8"
+          >
+            Save Draft
+          </button>
+
+          {/* Publish */}
+          <button
+            type="button"
+            disabled={mutation.isPending || (!isEdit && !hasPackage)}
+            onClick={() =>
+              handleSubmit((data) =>
+                onSubmit({ ...data, status: 'pending' })
+              )()
+            }
+            className="btn-primary px-8"
+          >
+            {mutation.isPending ? 'Saving...' : isEdit ? 'Update & Publish' : 'Publish Job'}
           </button>
         </div>
       </form>

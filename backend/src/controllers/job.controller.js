@@ -93,7 +93,11 @@ exports.getJob = asyncHandler(async (req, res, next) => {
     ? { _id: identifier }
     : { slug: identifier };
 
-  const job = await Job.findOne({ ...filter, status: 'approved' })
+  let query = { ...filter }
+  if (!req.user || req.user.role === 'jobseeker') {
+    query.status = 'approved'
+  }
+  const job = await Job.findOne(query)
     .populate('companyId', 'name logo slug isVerified city description socialLinks followersCount')
     .populate('categoryId', 'catTitle alias')
     .populate('subcategoryId', 'catTitle alias')
@@ -182,9 +186,10 @@ exports.updateJob = asyncHandler(async (req, res, next) => {
     return next(new AppError('You are not authorized to update this job.', 403));
   }
 
-  // Prevent status manipulation by employer
   if (!['admin', 'superadmin'].includes(req.user.role)) {
-    delete req.body.status;
+    if (req.body.status && req.body.status !== 'pending' && req.body.status !== 'draft') {
+      delete req.body.status;
+    }
   }
 
   const updatedJob = await Job.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
