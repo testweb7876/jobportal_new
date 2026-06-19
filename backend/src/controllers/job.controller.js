@@ -2,6 +2,7 @@ const Job = require('../models/Job.model');
 const Company = require('../models/Company.model');
 const User = require('../models/User.model');
 const Application = require('../models/Application.model');
+const slugify = require('slugify');
 const { UserPackage } = require('../models/Payment.model');
 const { ActivityLog, JobShortlist } = require('../models/Misc.model');
 const { AppError, asyncHandler, sendSuccess, sendPaginated } = require('../utils/AppError');
@@ -354,3 +355,17 @@ exports.getPublicStats = asyncHandler(async (req, res) => {
     }
   })
 })
+
+exports.createCategory = asyncHandler(async (req, res) => {
+  const category = await Category.create({
+    catTitle: req.body.catTitle,
+    alias:
+      req.body.alias ||
+      slugify(req.body.catTitle, {
+        lower: true,
+        strict: true,
+      }),
+  });
+
+  sendSuccess(res, { category }, 'Category created');
+});

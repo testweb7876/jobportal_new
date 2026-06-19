@@ -45,4 +45,20 @@ router.delete('/categories/:id', protect, adminOnly, asyncHandler(async (req, re
   sendSuccess(res, {}, 'Deleted');
 }));
 
+router.post('/job-types', protect, adminOnly, asyncHandler(async (req, res) => {
+  const jt = await JobType.create(req.body);
+  await cache.del('jobtypes');
+  sendSuccess(res, { jobType: jt }, 'Created', 201);
+}));
+router.patch('/job-types/:id', protect, adminOnly, asyncHandler(async (req, res) => {
+  const jt = await JobType.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  await cache.del('jobtypes');
+  sendSuccess(res, { jobType: jt }, 'Updated');
+}));
+router.delete('/job-types/:id', protect, adminOnly, asyncHandler(async (req, res) => {
+  await JobType.findByIdAndDelete(req.params.id);
+  await cache.del('jobtypes');
+  sendSuccess(res, {}, 'Deleted');
+}));
+
 module.exports = router;
