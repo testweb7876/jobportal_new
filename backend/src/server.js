@@ -89,6 +89,10 @@ app.use('/api/v1/payments', require('./routes/payment.routes'));
 app.use(cookieParser(process.env.COOKIE_SECRET));
 app.use(compression());
 
+// ─── PASSPORT (OAuth — Google, LinkedIn) ──────────────────────────────────
+const passport = require('./config/passport');
+app.use(passport.initialize());
+
 // ─── LOGGING ───────────────────────────────────────────────────────────────
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));

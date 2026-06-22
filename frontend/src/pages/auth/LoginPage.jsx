@@ -1,11 +1,12 @@
-import { useState } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { useState, useEffect  } from 'react'
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { motion } from 'framer-motion'
 import { Mail, Lock, Eye, EyeOff, Briefcase, ArrowRight } from 'lucide-react'
 import { authAPI } from '@/services/api'
 import useAuthStore from '@/store/authStore'
 import toast from 'react-hot-toast'
+import SocialAuthButtons from '@/components/auth/SocialAuthButtons'
 
 export default function LoginPage() {
   const [showPass, setShowPass] = useState(false)
@@ -13,9 +14,19 @@ export default function LoginPage() {
   const { setAuth } = useAuthStore()
   const navigate = useNavigate()
   const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
   const from = location.state?.from?.pathname || '/dashboard'
 
   const { register, handleSubmit, formState: { errors } } = useForm()
+
+  useEffect(() => {
+    const oauthError = searchParams.get('error')
+    if (oauthError) {
+      toast.error(oauthError)
+      searchParams.delete('error')
+      setSearchParams(searchParams, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
 
   const onSubmit = async (data) => {
     setLoading(true)
@@ -132,6 +143,7 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+          <SocialAuthButtons />
 
           <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6">
             Don't have an account?{' '}

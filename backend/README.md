@@ -1,6 +1,6 @@
 # 🚀 Job Portal Backend — Enterprise SaaS API
 
-Production-grade Node.js + Express + MongoDB Job Portal backend with full authentication, subscriptions, payments (Stripe, PayPal, Bank), real-time chat via Socket.io, push/email notifications, cron jobs, Cloudinary media, Redis caching, BullMQ queues, and Swagger API docs.
+Production-grade Node.js + Express + MongoDB Job Portal backend with full authentication (including Google & LinkedIn OAuth), subscriptions, payments (Stripe, PayPal, Bank), real-time chat via Socket.io, push/email notifications, cron jobs, Cloudinary media, Redis caching, BullMQ queues, and Swagger API docs.
 
 ---
 
@@ -12,6 +12,7 @@ src/
 │   ├── cloudinary.js         # Cloudinary v2 SDK setup
 │   ├── database.js           # MongoDB connection with reconnect logic
 │   ├── logger.js             # Winston logger with daily rotate files
+│   ├── passport.js           # Passport strategies: Google OAuth2, LinkedIn OpenID Connect
 │   ├── redis.js              # Redis client + cache helper (get/set/del/delPattern/exists)
 │   └── swagger.js            # Swagger/OpenAPI 3.0 spec config
 ├── constants/
@@ -19,7 +20,7 @@ src/
 ├── controllers/
 │   ├── admin.controller.js           # Dashboard, user mgmt, revenue reports, reports, system errors, activity logs, invoices
 │   ├── application.controller.js     # Apply, get my/job/single applications, update status, withdraw, rate, company overview
-│   ├── auth.controller.js            # Register, login, refresh, logout, verify email, forgot/reset/change password, sessions
+│   ├── auth.controller.js            # Register, login, refresh, logout, verify email, forgot/reset/change password, sessions, OAuth callbacks
 │   ├── company.controller.js         # CRUD companies, logo/gallery upload, verification, follow/unfollow, admin panel
 │   ├── job.controller.js             # CRUD jobs, shortlist, featured, moderate (admin), analytics
 │   ├── jobAlert.controller.js        # CRUD job alerts for jobseekers
@@ -44,14 +45,14 @@ src/
 │   ├── Payment.model.js       # UserPackage (quotas), Invoice (Stripe/PayPal/bank/free), TransactionLog, Subscription
 │   ├── RefreshToken.model.js  # Refresh tokens with device info, TTL index, revoke support
 │   ├── Resume.model.js        # Resume with education, experience, languages, files, ATS score, share token
-│   └── User.model.js          # Users with roles, status, avatar, job preferences, social links, notification settings, device history
+│   └── User.model.js          # Users with roles, status, avatar, job preferences, social links, notification settings, device history, googleId, linkedinId
 ├── queues/
-│   └── index.js              # BullMQ: notification queue (email delivery), email queue (job alerts)
+│   └── index.js              # BullMQ: notification queue (sends actual emails via emailService), email queue (job alerts)
 ├── routes/
 │   ├── admin.routes.js        # /admin/* — all admin-only routes
 │   ├── analytics.routes.js    # /analytics/employer, /analytics/jobseeker
 │   ├── application.routes.js  # /applications/*
-│   ├── auth.routes.js         # /auth/*
+│   ├── auth.routes.js         # /auth/* — includes Google & LinkedIn OAuth routes
 │   ├── category.routes.js     # /categories, /job-types, /career-levels, /education, /countries, /states, /cities + admin CRUD
 │   ├── company.routes.js      # /companies/*
 │   ├── follower.routes.js     # /followers/following
@@ -70,7 +71,7 @@ src/
 ├── services/
 │   ├── auth.service.js        # Token generation/rotation, sendTokenResponse, revokeToken, revokeAll
 │   ├── cloudinary.service.js  # Multer memory storage, uploadToCloudinary, deleteFromCloudinary, responsive URLs
-│   ├── email.service.js       # Nodemailer: welcome, password reset, application confirmation/status, job alert, payment confirmation
+│   ├── email.service.js       # Nodemailer: 15 templates — welcome, password reset/change alert, application confirmation/status/new-alert, job moderation, company verification, account status, payment confirmed/failed/refund/bank-proof, package expiry, job alerts, generic notification
 │   └── notification.service.js# NotificationService: create (with socket emit + BullMQ queue), markRead, markAllRead, getUnreadCount
 ├── sockets/
 │   └── index.js              # Socket.io: auth middleware, personal rooms, conversation rooms, typing indicators, online/offline
@@ -78,7 +79,7 @@ src/
 │   └── AppError.js           # AppError class, asyncHandler, sendSuccess, sendPaginated
 ├── validators/
 │   └── auth.validator.js     # Joi schemas: register, login, forgotPassword, resetPassword, changePassword
-└── server.js                 # Express app: security middleware, CORS, rate limiting, routes, Socket.io, cron, queues
+└── server.js                 # Express app: security middleware, CORS, rate limiting, Passport, routes, Socket.io, cron, queues
 ```
 
 ---
@@ -91,6 +92,8 @@ src/
 - Redis >= 7
 - Cloudinary account
 - Stripe account (for payments)
+- Google OAuth credentials (for Google login)
+- LinkedIn OAuth credentials (for LinkedIn login)
 
 ### 1. Clone & Install
 ```bash
@@ -157,17 +160,23 @@ stripe listen --forward-to localhost:5000/api/v1/payments/stripe/webhook
 | POST | `/login` | ❌ | Login — returns accessToken + refreshToken |
 | POST | `/refresh-token` | ❌ | Rotate refresh token, get new access token |
 | POST | `/logout` | ✅ | Revoke current session |
-| POST | `/logout-all` | ✅ | Revoke all active sessions |
+| POST | `/logout-all` | ✅ | Revoke all active sessions across all devices |
 | GET | `/verify-email/:token` | ❌ | Verify email address |
-| POST | `/resend-verification` | ❌ | Resend email verification |
+| POST | `/resend-verification` | ❌ | Resend email verification link |
 | POST | `/forgot-password` | ❌ | Send password reset link |
 | PATCH | `/reset-password/:token` | ❌ | Reset password with token |
 | PATCH | `/change-password` | ✅ | Change password (requires current password) |
 | GET | `/me` | ✅ | Get current authenticated user |
-| GET | `/sessions` | ✅ | List all active sessions/devices |
+| GET | `/sessions` | ✅ | List all active sessions/devices (sorted newest first) |
 | DELETE | `/sessions/:sessionId` | ✅ | Revoke a specific session |
+| GET | `/google` | ❌ | Initiate Google OAuth login |
+| GET | `/google/callback` | ❌ | Google OAuth callback — issues JWT, redirects to frontend |
+| GET | `/linkedin` | ❌ | Initiate LinkedIn OAuth login |
+| GET | `/linkedin/callback` | ❌ | LinkedIn OAuth callback — issues JWT, redirects to frontend |
 
 > Auth uses **JWT Bearer tokens** (`Authorization: Bearer <token>`). Tokens are also set as signed `httpOnly` cookies (`accessToken`, `refreshToken`).
+>
+> OAuth callbacks redirect to `CLIENT_URL/oauth-callback#accessToken=...&refreshToken=...` — tokens are passed in the URL **fragment** (not query string) to prevent them from appearing in server logs or Referer headers.
 
 ---
 
@@ -198,7 +207,7 @@ stripe listen --forward-to localhost:5000/api/v1/payments/stripe/webhook
 | PATCH | `/:id` | ✅ | Update job (employer: own jobs only; admin: any) |
 | DELETE | `/:id` | ✅ | Soft delete job |
 | POST | `/:id/shortlist` | ✅ | Toggle shortlist a job |
-| PATCH | `/:id/moderate` | ✅ Admin | Approve / reject / pause a job |
+| PATCH | `/:id/moderate` | ✅ Admin | Approve / reject / pause a job (emails employer the result) |
 
 **Job Filters (Query Params):**
 ```
@@ -237,15 +246,15 @@ applied → reviewed → shortlisted → interview_scheduled → interviewed →
 |--------|-------|------|-------------|
 | GET | `/` | Optional | List all companies (filters: keyword, city, verified, sort) |
 | GET | `/my-company` | ✅ Employer | Get own company |
-| GET | `/:id` | Optional | Get company by ID or slug (includes recent jobs) |
+| GET | `/:id` | Optional | Get company by ID or slug (includes recent jobs). Accepts both ObjectId and slug. |
 | POST | `/` | ✅ Employer | Create company profile |
 | PATCH | `/:id` | ✅ | Update company |
 | POST | `/logo` | ✅ Employer | Upload logo (multipart/form-data, field: `logo`) |
 | POST | `/gallery` | ✅ Employer | Upload gallery image (field: `image`) |
 | DELETE | `/gallery` | ✅ Employer | Delete gallery image (body: `publicId`) |
 | POST | `/verify/submit` | ✅ Employer | Submit verification documents (field: `documents`, max 5) |
-| POST | `/:id/follow` | ✅ | Follow / unfollow company |
-| PATCH | `/:id/verify` | ✅ Admin | Approve or reject company verification |
+| POST | `/:id/follow` | ✅ | Follow / unfollow company. Accepts both ObjectId and slug. |
+| PATCH | `/:id/verify` | ✅ Admin | Approve or reject company verification (emails employer) |
 | GET | `/admin/all` | ✅ Admin | List all companies with filters |
 
 ---
@@ -298,14 +307,16 @@ applied → reviewed → shortlisted → interview_scheduled → interviewed →
 | Method | Route | Auth | Description |
 |--------|-------|------|-------------|
 | POST | `/stripe/create-session` | ✅ | Create Stripe Checkout session (body: `packageId`) |
-| POST | `/stripe/webhook` | ❌ | Stripe webhook — auto-activates package on payment success |
+| POST | `/stripe/webhook` | ❌ | Stripe webhook — auto-activates package on payment success, emails user on failure |
 | POST | `/paypal/create-order` | ✅ | Create PayPal order (body: `packageId`) |
-| POST | `/paypal/capture` | ✅ | Capture PayPal payment (body: `orderId`) |
-| POST | `/bank/submit-proof` | ✅ | Submit bank transfer proof (multipart, field: `proof`, body: `packageId`) |
+| POST | `/paypal/capture` | ✅ | Capture PayPal payment (body: `orderId`) — sends confirmation email |
+| POST | `/bank/submit-proof` | ✅ | Submit bank transfer proof (multipart, field: `proof`, body: `packageId`) — sends receipt email |
 | PATCH | `/bank/:invoiceId/approve` | ✅ Admin | Approve bank transfer + activate package |
+| PATCH | `/bank/:invoiceId/status` | ✅ Admin | Update bank transfer status (pending/paid/rejected/failed) |
+| GET | `/bank-transfers` | ✅ Admin | All bank transfer invoices |
 | POST | `/free/activate` | ✅ | Activate free package |
 | GET | `/history` | ✅ | Payment history (paginated) |
-| POST | `/:id/refund` | ✅ | Request refund for a paid invoice |
+| POST | `/:id/refund` | ✅ | Request refund for a paid invoice (sends confirmation email) |
 
 ---
 
@@ -348,7 +359,7 @@ applied → reviewed → shortlisted → interview_scheduled → interviewed →
 |--------|-------|-------------|
 | GET | `/dashboard` | Stats: users, jobs, companies, applications, revenue, pending reports |
 | GET | `/users` | List all users (filters: role, status, search) |
-| PATCH | `/users/:id/status` | Update user status (active/suspended/banned/pending) |
+| PATCH | `/users/:id/status` | Update user status (active/suspended/banned/pending) — emails user |
 | DELETE | `/users/:id` | Soft delete user |
 | GET | `/jobs` | List all jobs including deleted |
 | GET | `/revenue` | Revenue report by month + by payment method |
@@ -358,6 +369,8 @@ applied → reviewed → shortlisted → interview_scheduled → interviewed →
 | GET | `/activity-logs` | Activity logs (filter by uid) |
 | GET | `/bank-transfers` | Pending bank transfer invoices |
 | GET | `/invoices` | All invoices (filter by paymentStatus, payMethod) |
+| GET | `/settings/bank` | Get bank account details |
+| PATCH | `/settings/bank` | Update bank account details |
 
 ---
 
@@ -386,6 +399,73 @@ Tokens are passed as:
 | `employer` | Post jobs, view applications, manage company |
 | `admin` | All of the above + moderate content, manage users |
 | `superadmin` | Full access |
+
+---
+
+## 🌐 Social Login (Google & LinkedIn)
+
+OAuth login is handled entirely on the backend using Passport.js. No OAuth SDK is needed on the frontend.
+
+### Flow
+```
+1. Frontend links to GET /api/v1/auth/google  (or /auth/linkedin)
+2. Browser redirects to Google/LinkedIn consent screen
+3. User approves → provider redirects to callback URL
+4. Backend finds or creates the user (links to existing account by email)
+5. Backend issues JWT access + refresh tokens
+6. Redirects to: CLIENT_URL/oauth-callback#accessToken=...&refreshToken=...
+7. Frontend reads tokens from URL fragment and completes login
+```
+
+Tokens arrive in the **URL fragment** (`#`), not the query string (`?`). This prevents them from appearing in server access logs, proxy logs, or browser Referer headers on subsequent navigation.
+
+### Account Linking
+If a user with the same email already exists (registered via password), their Google/LinkedIn ID is automatically linked to that account — they can then log in via either method without creating a duplicate account.
+
+### Google Console Setup
+1. [console.cloud.google.com](https://console.cloud.google.com) → New Project
+2. APIs & Services → OAuth consent screen → External
+3. Credentials → Create → OAuth client ID → Web application
+4. Authorized redirect URIs: `http://localhost:5000/api/v1/auth/google/callback`
+5. Copy Client ID and Secret to `.env`
+
+### LinkedIn Developer Setup
+1. [linkedin.com/developers](https://www.linkedin.com/developers) → Create App
+2. Auth tab → OAuth 2.0 scopes: `openid`, `profile`, `email`
+3. Authorized redirect URLs: `http://localhost:5000/api/v1/auth/linkedin/callback`
+4. Copy Client ID and Secret to `.env`
+
+> **LinkedIn Note:** LinkedIn's old v2 API was deprecated in 2023. This implementation uses LinkedIn's current OpenID Connect endpoint (`/v2/userinfo`) via `passport-oauth2` — the old `passport-linkedin-oauth2` package targets the deprecated API and should not be used.
+
+---
+
+## 📧 Email Notifications
+
+All transactional emails are sent via Nodemailer (`src/services/email.service.js`). The following emails are sent automatically:
+
+| Trigger | Template | Recipient |
+|---------|----------|-----------|
+| Register | Welcome + verify email link | New user |
+| Resend verification | Welcome + new verify link | User |
+| Email verified | — (silent) | — |
+| Forgot password | Reset link (1hr expiry) | User |
+| Password reset/change | Security alert | User |
+| Account suspended/banned/reactivated | Status notification | User |
+| Job application submitted | Confirmation | Jobseeker |
+| New job application received | Alert | Employer |
+| Application status updated | Status update | Jobseeker |
+| Job approved/rejected/paused (admin) | Moderation result | Employer |
+| Company verification approved/rejected | Verification result | Employer |
+| Payment confirmed | Invoice confirmation | User |
+| Payment failed | Failure notice | User |
+| Refund requested | Confirmation | User |
+| Bank proof submitted | Receipt acknowledgement | User |
+| Package expiring in 3 days | Expiry warning | User |
+| Job alert match | Matching jobs digest | Jobseeker |
+| Generic notification (via BullMQ queue) | Notification title/message | User |
+
+### BullMQ Email Queue
+The notification queue worker (`src/queues/index.js`) actually sends emails when `channels.email: true` is set on a notification — previously this was a no-op (only set a flag). The email queue handles batch job-alert delivery.
 
 ---
 
@@ -439,7 +519,7 @@ jobportal/
 ├── companies/      → Company logos
 ├── resumes/        → Resume PDF/DOCX files
 ├── messages/       → Chat message attachments
-├── verifications/  → Company verification documents
+├── verifications/  → Company verification documents + bank transfer proofs
 ├── gallery/        → Company gallery images
 └── covers/         → Cover images
 ```
@@ -451,20 +531,25 @@ jobportal/
 ### Stripe
 1. Frontend calls `POST /payments/stripe/create-session` → gets `sessionUrl`
 2. Redirect user to `sessionUrl` (Stripe Checkout)
-3. On success, Stripe calls webhook → package auto-activates
-4. Frontend polls `GET /packages/my-package` or listens for `payment_success` notification
+3. On success, Stripe calls webhook → package auto-activates + confirmation email sent
+4. On failure, Stripe webhook updates invoice status + failure email sent
+5. Frontend polls `GET /packages/my-package` or listens for `payment_success` notification
 
 ### PayPal
 1. `POST /payments/paypal/create-order` → get `orderId`
 2. Show PayPal button using SDK with `orderId`
 3. On approval, call `POST /payments/paypal/capture` with `orderId`
-4. Package activates immediately
+4. Package activates immediately + confirmation email sent
 
 ### Bank Transfer
-1. User uploads proof via `POST /payments/bank/submit-proof`
+1. User uploads proof via `POST /payments/bank/submit-proof` → receipt email sent to user
 2. Admin reviews at `GET /admin/bank-transfers`
-3. Admin approves via `PATCH /payments/bank/:invoiceId/approve`
+3. Admin approves via `PATCH /payments/bank/:invoiceId/approve` OR `PATCH /payments/bank/:invoiceId/status`
 4. Package activates + confirmation email sent
+
+### Free Package
+1. `POST /payments/free/activate` with `packageId`
+2. Activates immediately
 
 ---
 
@@ -500,6 +585,10 @@ When a package is activated, these counters are populated and decremented on use
 - Soft delete — critical data is never hard-deleted
 - Signed cookies (cookie-parser)
 - Device/session tracking with IP + User-Agent logging
+- OAuth tokens passed via URL fragment (not query string) to prevent log exposure
+- Email verification tokens preserved on send-failure so resend always works
+- Password change revokes all existing refresh tokens across all devices
+- Token rotation attack detection — revokes all user sessions on reuse attempt
 
 ---
 
@@ -546,6 +635,14 @@ PAYPAL_CLIENT_ID=your_paypal_client_id
 PAYPAL_CLIENT_SECRET=your_paypal_client_secret
 PAYPAL_MODE=sandbox
 
+# GOOGLE OAUTH
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+
+# LINKEDIN OAUTH
+LINKEDIN_CLIENT_ID=your_linkedin_client_id
+LINKEDIN_CLIENT_SECRET=your_linkedin_client_secret
+
 # SENTRY (production only)
 SENTRY_DSN=https://your_sentry_dsn
 
@@ -580,10 +677,11 @@ ENABLE_CRON=true
 | **Redis** | Caching, token blacklist, BullMQ backend |
 | **BullMQ** | Background job queues (emails, notifications) |
 | **Socket.io** | Real-time chat, notifications, presence |
+| **Passport.js** | OAuth strategies: Google OAuth2, LinkedIn OpenID Connect |
 | **Cloudinary** | Image & file storage (stream upload) |
 | **Stripe** | Card payments + webhook |
 | **PayPal** | PayPal checkout (sandbox + live) |
-| **Nodemailer** | Transactional emails via SMTP |
+| **Nodemailer** | Transactional emails via SMTP (15 templates) |
 | **Winston** | Structured logging with daily log rotation |
 | **Joi** | Request body validation |
 | **Swagger** | Auto-generated API documentation |
@@ -648,6 +746,25 @@ Body: { "refreshToken": "<token>" }
   "refreshToken": "...",
   "user": { ... }
 }
+```
+
+### OAuth login flow (frontend side):
+```js
+// 1. Link or redirect to the OAuth URL — no JS needed
+window.location.href = `${API_URL}/auth/google`
+
+// 2. After Google/LinkedIn approves, the backend redirects to:
+//    /oauth-callback#accessToken=...&refreshToken=...
+
+// 3. On the OAuthCallbackPage, parse the fragment:
+const hash = window.location.hash.replace(/^#/, '')
+const params = new URLSearchParams(hash)
+const accessToken = params.get('accessToken')
+const refreshToken = params.get('refreshToken')
+
+// 4. Fetch the user profile and complete login
+const { data } = await authAPI.getMe()
+setAuth(data.user, accessToken, refreshToken)
 ```
 
 ### File upload example (multipart):
