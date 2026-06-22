@@ -32,6 +32,7 @@ const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'))
 const ResetPasswordPage  = lazy(() => import('@/pages/auth/ResetPasswordPage'))
 const VerifyEmailPage    = lazy(() => import('@/pages/auth/VerifyEmailPage'))
 const SessionsPage     = lazy(() => import('@/pages/auth/SessionsPage'))
+const OAuthCallbackPage = lazy(() => import('@/pages/auth/OAuthCallbackPage'))
 
 // ── Job Seeker Pages ─────────────────────────────────────────────────────────
 const JSDashboard      = lazy(() => import('@/pages/jobseeker/Dashboard'))
@@ -111,6 +112,7 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
         <Route path="/verify-email/:token"   element={<VerifyEmailPage />} />
+        <Route path="/oauth-callback" element={<OAuthCallbackPage />} />
         <Route path="/sessions" element={<ProtectedRoute><SessionsPage /></ProtectedRoute>} />
 
         {/* ── Smart Dashboard Redirect ─────────────────────────────────── */}

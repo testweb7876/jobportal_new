@@ -6,6 +6,7 @@ import { Mail, Lock, Eye, EyeOff, User, Phone, Briefcase, Building2, ArrowRight 
 import { authAPI } from '@/services/api'
 import useAuthStore from '@/store/authStore'
 import toast from 'react-hot-toast'
+import SocialAuthButtons from '@/components/auth/SocialAuthButtons'
 
 export default function RegisterPage() {
   const [showPass, setShowPass] = useState(false)
@@ -180,6 +181,8 @@ export default function RegisterPage() {
               )}
             </button>
           </form>
+
+          <SocialAuthButtons />
 
           <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6">
             Already have an account?{' '}

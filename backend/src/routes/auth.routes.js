@@ -19,5 +19,9 @@ router.patch('/change-password',  protect, validate(changePasswordSchema),      
 router.get('/me',                 protect,                                       authController.getMe);
 router.get('/sessions',           protect,                                       authController.getActiveSessions);
 router.delete('/sessions/:sessionId', protect,                                  authController.revokeSession);
+router.get('/google', authController.googleAuth);
+router.get('/google/callback', authController.googleCallback);
+router.get('/linkedin', authController.linkedinAuth);
+router.get('/linkedin/callback', authController.linkedinCallback);
 
 module.exports = router;
