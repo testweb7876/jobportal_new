@@ -78,6 +78,11 @@ const AdminBankTransfers = lazy(() => import('@/pages/admin/BankTransfers'))
 const AdminCategories    = lazy(() => import('@/pages/admin/Categories'))
 const Revenue = lazy(() => import('@/pages/admin/Revenue'))
 const Invoices = lazy(() => import('@/pages/admin/Invoices'))
+const AdminAdmins      = lazy(() => import('@/pages/admin/Admins'))
+const AdminBroadcast   = lazy(() => import('@/pages/admin/Broadcast'))
+const AdminRefunds     = lazy(() => import('@/pages/admin/Refunds'))
+const AdminAnalytics   = lazy(() => import('@/pages/admin/Analytics'))
+const SuperAdminRoute = lazy(() => import('@/components/common/SuperAdminRoute'))
 
 
 
@@ -166,15 +171,21 @@ function App() {
           <Route path="users"      element={<AdminUsers />} />
           <Route path="jobs"       element={<AdminJobs />} />
           <Route path="companies"  element={<AdminCompanies />} />
-          <Route path="packages"   element={<AdminPackages />} />
-          <Route path="payments"   element={<AdminPayments />} />
           <Route path="reports"    element={<AdminReports />} />
           <Route path="settings"   element={<AdminSettings />} />
           <Route path="activity-logs"   element={<AdminActivityLogs />} />
           <Route path="bank-transfers"  element={<AdminBankTransfers />} />
-          <Route path="categories"      element={<AdminCategories />} />
-          <Route path="revenue" element={<Revenue />} />
           <Route path="invoices" element={<Invoices />} />
+
+
+          <Route path="revenue"   element={<SuperAdminRoute><Revenue /></SuperAdminRoute>} />
+          <Route path="analytics" element={<SuperAdminRoute><AdminAnalytics /></SuperAdminRoute>} />
+          <Route path="admins"    element={<SuperAdminRoute><AdminAdmins /></SuperAdminRoute>} />
+          <Route path="packages"  element={<SuperAdminRoute><AdminPackages /></SuperAdminRoute>} />
+          <Route path="refunds"   element={<SuperAdminRoute><AdminRefunds /></SuperAdminRoute>} />
+          <Route path="broadcast" element={<SuperAdminRoute><AdminBroadcast /></SuperAdminRoute>} />
+          <Route path="categories" element={<SuperAdminRoute><AdminCategories /></SuperAdminRoute>} />
+          <Route path="payments"   element={<SuperAdminRoute><AdminPayments /></SuperAdminRoute>} />
         </Route>
 
         <Route path="*" element={<NotFound />} />
