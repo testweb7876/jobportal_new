@@ -3,7 +3,17 @@ import useAuthStore from '@/store/authStore'
 
 export default function RoleRoute({ role, children }) {
   const { user } = useAuthStore()
-  const allowed = ['admin', 'superadmin'].includes(user?.role) || user?.role === role
-  if (!allowed) return <Navigate to="/dashboard" replace />
+
+  if (role === 'admin') {
+    if (!['admin', 'superadmin'].includes(user?.role)) {
+      return <Navigate to="/dashboard" replace />
+    }
+    return children
+  }
+
+  if (user?.role !== role) {
+    return <Navigate to="/dashboard" replace />
+  }
+
   return children
 }

@@ -1,4 +1,3 @@
-// src/pages/auth/SessionsPage.jsx
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Monitor, Smartphone, Globe, LogOut, Shield, Clock } from 'lucide-react'
 import { authAPI } from '@/services/api'
@@ -23,8 +22,6 @@ export default function SessionsPage() {
 
   const revokeMutation = useMutation({
     mutationFn: (id) => authAPI.revokeSession(id),
-    // TanStack Query v5 removed the array-shorthand for invalidateQueries —
-    // it now requires an object with a queryKey field (package.json pins ^5.13.4).
     onSuccess: () => { toast.success('Session revoked'); qc.invalidateQueries({ queryKey: ['sessions'] }) },
     onError: () => toast.error('Failed to revoke session'),
   })

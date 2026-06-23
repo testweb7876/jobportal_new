@@ -1,4 +1,3 @@
-// src/pages/admin/Categories.jsx
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Edit2, Trash2, Tag, Briefcase } from 'lucide-react'

@@ -10,9 +10,10 @@ exports.protect = async (req, res, next) => {
   try {
     let token;
 
-    // Get token from header or cookie
     if (req.headers.authorization?.startsWith('Bearer ')) {
       token = req.headers.authorization.split(' ')[1];
+    } else if (req.signedCookies?.accessToken) {
+      token = req.signedCookies.accessToken;
     } else if (req.cookies?.accessToken) {
       token = req.cookies.accessToken;
     }
@@ -31,7 +32,7 @@ exports.protect = async (req, res, next) => {
     const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
 
     // Check if user still exists
-    const user = await User.findById(decoded.id).select('+password');
+    const user = await User.findById(decoded.id);
     if (!user) {
       return next(new AppError('The user belonging to this token no longer exists.', 401));
     }
@@ -66,6 +67,8 @@ exports.optionalAuth = async (req, res, next) => {
     let token;
     if (req.headers.authorization?.startsWith('Bearer ')) {
       token = req.headers.authorization.split(' ')[1];
+    } else if (req.signedCookies?.accessToken) {
+      token = req.signedCookies.accessToken;
     } else if (req.cookies?.accessToken) {
       token = req.cookies.accessToken;
     }
@@ -79,11 +82,11 @@ exports.optionalAuth = async (req, res, next) => {
     }
     next();
   } catch {
-    next(); // ignore errors for optional auth
+    next(); 
   }
 };
 
-// ─── RESTRICT TO ─────────────────────────────────────────────────────────────
+// ─── RESTRICT TO (generic) ────────────────────────────────────────────────────
 exports.restrictTo = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
@@ -113,6 +116,14 @@ exports.jobseekerOnly = (req, res, next) => {
 exports.adminOnly = (req, res, next) => {
   if (!['admin', 'superadmin'].includes(req.user.role)) {
     return next(new AppError('This route is only for administrators.', 403));
+  }
+  next();
+};
+
+// ─── SUPERADMIN ONLY ─────────────────────────────────────────────────────────
+exports.superAdminOnly = (req, res, next) => {
+  if (req.user.role !== 'superadmin') {
+    return next(new AppError('This action requires Superadmin privileges.', 403));
   }
   next();
 };

@@ -233,6 +233,28 @@ export const adminAPI = {
   deleteJobType:     (id)       => api.delete(`/categories/job-types/${id}`),
   revenue: (params) => api.get('/admin/revenue', { params }),
   getInvoices: (params) => api.get('/admin/invoices', { params }),
+
+
+  createCategory:     (data)     => api.post('/admin/categories', data),
+  updateCategory:     (id, data) => api.patch(`/admin/categories/${id}`, data),
+  deleteCategory:     (id)       => api.delete(`/admin/categories/${id}`),
+
+  revenue:            (params)   => api.get('/admin/revenue', { params }),
+  getAnalytics:       (params)   => api.get('/admin/analytics', { params }),
+  getAdmins:          ()         => api.get('/admin/admins'),
+  createAdmin:        (data)     => api.post('/admin/admins', data),
+  updateAdminStatus:  (id, data) => api.patch(`/admin/admins/${id}/status`, data),
+  deleteAdmin:        (id)       => api.delete(`/admin/admins/${id}`),
+  getSettings:        ()         => api.get('/admin/settings'),
+  updateSettings:     (data)     => api.patch('/admin/settings', data),
+  getRefunds:         (params)   => api.get('/admin/refunds', { params }),
+  processRefund:      (id, data) => api.patch(`/admin/refunds/${id}`, data),
+  sendBroadcast:      (data)     => api.post('/admin/broadcast', data),
+  assignPackage:      (data)     => api.post('/admin/assign-package', data),
+  clearCache:         (data)     => api.post('/admin/cache/clear', data),
+  createPackage:      (data)     => api.post('/admin/packages', data),
+  updatePackage:      (id, data) => api.patch(`/admin/packages/${id}`, data),
+  deletePackage:      (id)       => api.delete(`/admin/packages/${id}`),
 }
 
 export const searchAPI = {
