@@ -82,7 +82,7 @@ const AdminAdmins      = lazy(() => import('@/pages/admin/Admins'))
 const AdminBroadcast   = lazy(() => import('@/pages/admin/Broadcast'))
 const AdminRefunds     = lazy(() => import('@/pages/admin/Refunds'))
 const AdminAnalytics   = lazy(() => import('@/pages/admin/Analytics'))
-const SuperAdminRoute = lazy(() => import('@/components/common/SuperAdminRoute'))
+const PermissionRoute = lazy(() => import('@/components/common/PermissionRoute'))
 
 
 
@@ -165,27 +165,26 @@ function App() {
         </Route>
 
         {/* ── Admin Routes ────────────────────────────────────────────── */}
-        <Route path="/admin" element={<ProtectedRoute><RoleRoute role="admin"><AdminLayout /></RoleRoute></ProtectedRoute>}>
+        <Route path="/admin" element={ <ProtectedRoute>  <RoleRoute role="admin">  <AdminLayout /> </RoleRoute> </ProtectedRoute> }>
           <Route index element={<Navigate to="dashboard" />} />
-          <Route path="dashboard"  element={<AdminDashboard />} />
-          <Route path="users"      element={<AdminUsers />} />
-          <Route path="jobs"       element={<AdminJobs />} />
-          <Route path="companies"  element={<AdminCompanies />} />
-          <Route path="reports"    element={<AdminReports />} />
-          <Route path="settings"   element={<AdminSettings />} />
-          <Route path="activity-logs"   element={<AdminActivityLogs />} />
-          <Route path="bank-transfers"  element={<AdminBankTransfers />} />
-          <Route path="invoices" element={<Invoices />} />
+          <Route path="dashboard"      element={<AdminDashboard />} />
+          <Route path="users"          element={<AdminUsers />} />
+          <Route path="jobs"           element={<AdminJobs />} />
+          <Route path="companies"      element={<AdminCompanies />} />
+          <Route path="reports"        element={<AdminReports />} />
+          <Route path="settings"       element={<AdminSettings />} />
+          <Route path="activity-logs"  element={<AdminActivityLogs />} />
+          <Route path="bank-transfers" element={<AdminBankTransfers />} />
+          <Route path="invoices"       element={<Invoices />} />
 
-
-          <Route path="revenue"   element={<SuperAdminRoute><Revenue /></SuperAdminRoute>} />
-          <Route path="analytics" element={<SuperAdminRoute><AdminAnalytics /></SuperAdminRoute>} />
-          <Route path="admins"    element={<SuperAdminRoute><AdminAdmins /></SuperAdminRoute>} />
-          <Route path="packages"  element={<SuperAdminRoute><AdminPackages /></SuperAdminRoute>} />
-          <Route path="refunds"   element={<SuperAdminRoute><AdminRefunds /></SuperAdminRoute>} />
-          <Route path="broadcast" element={<SuperAdminRoute><AdminBroadcast /></SuperAdminRoute>} />
-          <Route path="categories" element={<SuperAdminRoute><AdminCategories /></SuperAdminRoute>} />
-          <Route path="payments"   element={<SuperAdminRoute><AdminPayments /></SuperAdminRoute>} />
+          <Route path="revenue"    element={<PermissionRoute permission="revenue"><Revenue /></PermissionRoute>} />
+          <Route path="analytics"  element={<PermissionRoute permission="analytics"><AdminAnalytics /></PermissionRoute>} />
+          <Route path="packages"   element={<PermissionRoute permission="packages"><AdminPackages /></PermissionRoute>} />
+          <Route path="refunds"    element={<PermissionRoute permission="refunds"><AdminRefunds /></PermissionRoute>} />
+          <Route path="broadcast"  element={<PermissionRoute permission="broadcast"><AdminBroadcast /></PermissionRoute>} />
+          <Route path="categories" element={<PermissionRoute permission="categories"><AdminCategories /></PermissionRoute>} />
+          <Route path="payments"   element={<PermissionRoute permission="payments"><AdminPayments /></PermissionRoute>} />
+          <Route path="admins" element={<PermissionRoute permission="admins_manage"><AdminAdmins /></PermissionRoute>} />
         </Route>
 
         <Route path="*" element={<NotFound />} />

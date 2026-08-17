@@ -900,3 +900,59 @@ exports.clearCache = asyncHandler(async (req, res) => {
 
   sendSuccess(res, {}, `Cache cleared${pattern ? `: ${pattern}` : ' (all)'}`);
 });
+
+// ─── GET ADMIN PERMISSIONS ────────────────────────────────────────────────
+exports.getAdminPermissions = asyncHandler(async (req, res, next) => {
+  const admin = await User.findById(req.params.id)
+    .select('firstName lastName email role permissions');
+  if (!admin) return next(new AppError('Admin not found.', 404));
+  sendSuccess(res, { admin }, 'Permissions fetched');
+});
+
+// ─── UPDATE ADMIN PERMISSIONS (superadmin only) ───────────────────────────
+exports.updateAdminPermissions = asyncHandler(async (req, res, next) => {
+  const { permissions } = req.body;
+
+  const validPermissions = [
+    'revenue', 'analytics', 'packages',
+    'categories', 'refunds', 'broadcast'
+  ];
+
+  // Validate permissions
+  const invalid = permissions.filter(p => !validPermissions.includes(p));
+  if (invalid.length) {
+    return next(new AppError(`Invalid permissions: ${invalid.join(', ')}`, 400));
+  }
+
+  const target = await User.findById(req.params.id);
+  if (!target) return next(new AppError('Admin not found.', 404));
+  if (target.role !== 'admin') {
+    return next(new AppError('Permissions can only be set for admin role.', 400));
+  }
+
+  const admin = await User.findByIdAndUpdate(
+    req.params.id,
+    { permissions },
+    { new: true }
+  ).select('firstName lastName email role permissions');
+
+  await ActivityLog.create({
+    uid: req.user._id,
+    performedBy: req.user._id,
+    description: `Superadmin updated permissions for ${admin.email}: [${permissions.join(', ')}]`,
+    action: 'admin_permissions_update',
+    referenceFor: 'User',
+    referenceId: admin._id,
+    ipAddress: req.ip,
+  });
+
+  sendSuccess(res, { admin }, 'Permissions updated');
+});
+
+exports.getPackagesList = asyncHandler(async (req, res) => {
+  const packages = await Package.find({ isDeleted: { $ne: true } })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  sendSuccess(res, { packages }, 'Packages fetched');
+});

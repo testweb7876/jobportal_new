@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, UserCheck, UserX, Shield } from 'lucide-react'
+import { Plus, Trash2, UserCheck, UserX, Shield, Key } from 'lucide-react'
 import { adminAPI } from '@/services/api'
 import { Avatar, Table, Modal, EmptyState } from '@/components/common/UI'
 import { useForm } from 'react-hook-form'
@@ -11,6 +11,18 @@ export default function AdminAdmins() {
   const qc = useQueryClient()
   const [createModal, setCreateModal] = useState(false)
   const { register, handleSubmit, reset, formState: { errors } } = useForm()
+  const [permModal, setPermModal] = useState(null)
+
+  const permMutation = useMutation({
+    mutationFn: ({ id, permissions }) =>
+      adminAPI.updateAdminPermissions(id, { permissions }),
+    onSuccess: () => {
+      toast.success('Permissions updated!')
+      setPermModal(null)
+      qc.invalidateQueries(['admin-admins'])
+    },
+    onError: (err) => toast.error(err?.response?.data?.message || 'Failed'),
+  })
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-admins'],
@@ -113,6 +125,12 @@ export default function AdminAdmins() {
                         className="btn-ghost btn-sm text-red-600">
                         <Trash2 size={13} />
                       </button>
+                      <button
+                      onClick={() => setPermModal(admin)}
+                      className="btn-ghost btn-sm text-primary-600"
+                      title="Manage Permissions">
+                      <Key size={13} />
+                    </button>
                     </div>
                   )}
                 </td>
@@ -153,6 +171,89 @@ export default function AdminAdmins() {
           </div>
         </form>
       </Modal>
+      {permModal && (
+        <PermissionModal
+          admin={permModal}
+          onClose={() => setPermModal(null)}
+          onSave={(permissions) =>
+            permMutation.mutate({
+              id: permModal._id,
+              permissions,
+            })
+          }
+          isPending={permMutation.isPending}
+        />
+      )}
     </div>
+  )
+}
+
+function PermissionModal({ admin, onClose, onSave, isPending }) {
+  const [selected, setSelected] = useState(admin?.permissions || [])
+
+  const AVAILABLE_PERMISSIONS = [
+    { key: 'revenue',    label: 'Revenue Reports',    emoji: '📊' },
+    { key: 'analytics',  label: 'Platform Analytics', emoji: '📈' },
+    { key: 'packages',   label: 'Package Management', emoji: '📦' },
+    { key: 'categories', label: 'Categories',         emoji: '🏷️' },
+    { key: 'refunds',    label: 'Refund Management',  emoji: '💰' },
+    { key: 'broadcast',  label: 'Broadcast Messages', emoji: '📢' },
+    { key: 'payments',   label: 'Payments View',      emoji: '💳' },
+  ]
+
+  const toggle = (key) => {
+    setSelected(prev =>
+      prev.includes(key) ? prev.filter(p => p !== key) : [...prev, key]
+    )
+  }
+
+  return (
+    <Modal
+      open={true}
+      onClose={onClose}
+      title={`Permissions — ${admin?.firstName} ${admin?.lastName}`}
+    >
+      <div className="space-y-4">
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Select which extra features this admin can access:
+        </p>
+
+        <div className="space-y-2">
+          {AVAILABLE_PERMISSIONS.map(perm => (
+            <label
+              key={perm.key}
+              className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 dark:border-dark-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-700/50 transition-colors"
+            >
+              <input
+                type="checkbox"
+                checked={selected.includes(perm.key)}
+                onChange={() => toggle(perm.key)}
+                className="w-4 h-4 rounded text-primary-600"
+              />
+              <span className="text-lg">{perm.emoji}</span>
+              <span className="text-sm font-medium text-gray-900 dark:text-white">
+                {perm.label}
+              </span>
+              {selected.includes(perm.key) && (
+                <span className="ml-auto badge badge-success text-xs">Allowed</span>
+              )}
+            </label>
+          ))}
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <button onClick={onClose} className="btn-secondary flex-1">
+            Cancel
+          </button>
+          <button
+            onClick={() => onSave(selected)}
+            disabled={isPending}
+            className="btn-primary flex-1"
+          >
+            {isPending ? 'Saving...' : 'Save Permissions'}
+          </button>
+        </div>
+      </div>
+    </Modal>
   )
 }

@@ -146,3 +146,15 @@ exports.authLimiter = rateLimit({
   legacyHeaders: false,
   skipSuccessfulRequests: true,
 });
+// ─── PERMISSION CHECK ─────────────────────────────────────────────────────
+exports.hasPermission = (permission) => {
+  return (req, res, next) => {
+    if (req.user.role === 'superadmin') return next();
+    if (req.user.role === 'admin') {
+      if (req.user.permissions?.includes(permission)) return next();
+      return next(new AppError(`You don't have permission to access this.`, 403));
+    }
+
+    return next(new AppError('Not authorized.', 403));
+  };
+};

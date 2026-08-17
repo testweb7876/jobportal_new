@@ -644,7 +644,7 @@ LINKEDIN_CLIENT_ID=your_linkedin_client_id
 LINKEDIN_CLIENT_SECRET=your_linkedin_client_secret
 
 # SENTRY (production only)
-SENTRY_DSN=https://your_sentry_dsn
+SENTRY_DSN=https://ed416edcf1cfd41d94552666a1931512@o4511625603579904.ingest.us.sentry.io/4511625608364032
 
 # RATE LIMITING
 RATE_LIMIT_WINDOW_MS=900000

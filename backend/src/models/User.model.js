@@ -65,6 +65,11 @@ const userSchema = new mongoose.Schema({
     workplaceType: { type: String, enum: ['onsite', 'remote', 'hybrid'] },
   },
 
+  permissions: {
+    type: [String],
+    default: [],
+  },
+
   // ── Resume (quick upload reference) ──────────────────────────────────────────
   resume: {
     publicId:   String,
