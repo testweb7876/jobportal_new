@@ -27,11 +27,12 @@ const sendSuccess = (res, data = {}, message = 'Success', statusCode = 200) => {
   });
 };
 
-const sendPaginated = (res, data, total, page, limit, message = 'Success') => {
+const sendPaginated = (res, data, total, page, limit, message = 'Success', extra = {}) => {
   return res.status(200).json({
     success: true,
     message,
     data,
+    ...extra, 
     pagination: {
       total,
       page: parseInt(page),

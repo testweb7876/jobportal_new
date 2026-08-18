@@ -5,46 +5,43 @@ const { AppError, asyncHandler, sendSuccess } = require('../utils/AppError');
 const emailService = require('../services/email.service');
 const notificationService = require('../services/notification.service');
 const logger = require('../config/logger');
+const mongoose = require('mongoose');
 
 // ─── HELPER: ACTIVATE USER PACKAGE ───────────────────────────────────────────
 const activateUserPackage = async (userId, packageId, invoiceId) => {
-  const pkg = await Package.findById(packageId);
-  if (!pkg) throw new Error('Package not found');
+  const session = await mongoose.startSession();
+  try {
+    let userPkg;
+    await session.withTransaction(async () => {
+      const pkg = await Package.findById(packageId).session(session);
+      if (!pkg) throw new Error('Package not found');
 
-  const endDate = new Date();
-  if (pkg.packageTimeUnit === 'days') endDate.setDate(endDate.getDate() + pkg.packageTime);
-  else if (pkg.packageTimeUnit === 'months') endDate.setMonth(endDate.getMonth() + pkg.packageTime);
-  else if (pkg.packageTimeUnit === 'years') endDate.setFullYear(endDate.getFullYear() + pkg.packageTime);
+      const endDate = new Date();
+      if (pkg.packageTimeUnit === 'days') endDate.setDate(endDate.getDate() + pkg.packageTime);
+      else if (pkg.packageTimeUnit === 'months') endDate.setMonth(endDate.getMonth() + pkg.packageTime);
+      else if (pkg.packageTimeUnit === 'years') endDate.setFullYear(endDate.getFullYear() + pkg.packageTime);
 
-  // Deactivate old packages
-  await UserPackage.updateMany({ uid: userId, status: true }, { status: false, isActive: false });
+      await UserPackage.updateMany({ uid: userId, status: true }, { status: false, isActive: false }, { session });
 
-  const userPkg = await UserPackage.create({
-    uid: userId,
-    packageId,
-    endDate,
-    status: true,
-    isActive: true,
-    paymentHistoryId: invoiceId,
-    remainingJobs:           pkg.job,
-    remainingFeaturedJobs:   pkg.featuredJob,
-    remainingResumes:        pkg.resume,
-    remainingFeaturedResumes: pkg.featuredResume,
-    remainingCompanies:      pkg.companies,
-    remainingJobAlerts:      pkg.jobAlert,
-    remainingJobApply:       pkg.jobApply,
-    remainingResumeSearch:   pkg.resumeSearch,
-  });
+      const [created] = await UserPackage.create([{
+        uid: userId, packageId, endDate, status: true, isActive: true,
+        paymentHistoryId: invoiceId,
+        remainingJobs: pkg.job, remainingFeaturedJobs: pkg.featuredJob,
+        remainingResumes: pkg.resume, remainingFeaturedResumes: pkg.featuredResume,
+        remainingCompanies: pkg.companies, remainingJobAlerts: pkg.jobAlert,
+        remainingJobApply: pkg.jobApply, remainingResumeSearch: pkg.resumeSearch,
+      }], { session });
+      userPkg = created;
 
-  await TransactionLog.create({
-    uid: userId,
-    userPackageId: userPkg._id,
-    recordId: invoiceId,
-    type: 'package_activated',
-    status: true,
-  });
-
-  return userPkg;
+      await TransactionLog.create([{
+        uid: userId, userPackageId: userPkg._id, recordId: invoiceId,
+        type: 'package_activated', status: true,
+      }], { session });
+    });
+    return userPkg;
+  } finally {
+    session.endSession();
+  }
 };
 
 // ─── STRIPE: CREATE CHECKOUT SESSION ─────────────────────────────────────────

@@ -134,33 +134,57 @@ exports.getJob = asyncHandler(async (req, res, next) => {
 
 // ─── CREATE JOB ───────────────────────────────────────────────────────────────
 exports.createJob = asyncHandler(async (req, res, next) => {
-  const pkg = await UserPackage.findOne({ 
-    uid: req.user._id, status: true, isActive: true, endDate: { $gt: new Date() } 
-  });
+  const pkg = await UserPackage.findOneAndUpdate(
+    {
+      uid: req.user._id,
+      status: true,
+      isActive: true,
+      endDate: { $gt: new Date() },
+      $or: [
+        { remainingJobs: -1 },
+        { remainingJobs: { $gt: 0 } },
+      ],
+    },
+    [
+      {
+        $set: {
+          remainingJobs: {
+            $cond: [
+              { $eq: ['$remainingJobs', -1] },
+              -1,
+              { $subtract: ['$remainingJobs', 1] },
+            ],
+          },
+        },
+      },
+    ],
+    { new: true }
+  );
 
-  if (!pkg || (pkg.remainingJobs !== -1 && pkg.remainingJobs <= 0)) {
+  if (!pkg) {
     return next(new AppError('You have reached your job posting limit. Please upgrade your package.', 403));
   }
-
-  // ── AUTO-ATTACH COMPANY ───────────────────────────────────────
   const Company = require('../models/Company.model');
   const company = await Company.findOne({ uid: req.user._id });
-  // ─────────────────────────────────────────────────────────────
 
   const jobData = {
     ...req.body,
     uid: req.user._id,
-    companyId: company?._id || req.body.companyId,  // ← auto attach
-    company:   company?.name || req.body.company,    // ← legacy field
+    companyId: company?._id || req.body.companyId,
+    company:   company?.name || req.body.company,
     status: req.user.role === 'admin' ? 'approved' : 'pending',
     expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     userpackageId: pkg._id,
   };
 
-  const job = await Job.create(jobData);
-
-  if (pkg.remainingJobs !== -1) {
-    await UserPackage.findByIdAndUpdate(pkg._id, { $inc: { remainingJobs: -1 } });
+  let job;
+  try {
+    job = await Job.create(jobData);
+  } catch (err) {
+    if (pkg.remainingJobs !== -1) {
+      await UserPackage.findByIdAndUpdate(pkg._id, { $inc: { remainingJobs: 1 } });
+    }
+    throw err;
   }
 
   await ActivityLog.create({
@@ -360,17 +384,3 @@ exports.getPublicStats = asyncHandler(async (req, res) => {
     }
   })
 })
-
-exports.createCategory = asyncHandler(async (req, res) => {
-  const category = await Category.create({
-    catTitle: req.body.catTitle,
-    alias:
-      req.body.alias ||
-      slugify(req.body.catTitle, {
-        lower: true,
-        strict: true,
-      }),
-  });
-
-  sendSuccess(res, { category }, 'Category created');
-});

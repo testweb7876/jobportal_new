@@ -4,6 +4,11 @@ const logger = require('./logger');
 let redisClient;
 
 const connectRedis = async () => {
+  if (process.env.NODE_ENV === 'test') {
+    logger.info('Skipping Redis connection in test environment');
+    return;
+  }
+
   try {
     redisClient = createClient({
       url: process.env.REDIS_URL || 'redis://localhost:6379',
@@ -18,7 +23,6 @@ const connectRedis = async () => {
     await redisClient.connect();
   } catch (error) {
     logger.error(`Redis connection error: ${error.message}`);
-    // Don't exit — app can run without Redis (degraded mode)
   }
 };
 
@@ -32,21 +36,18 @@ const cache = {
       return data ? JSON.parse(data) : null;
     } catch { return null; }
   },
-
   async set(key, value, ttlSeconds = 300) {
     try {
       if (!redisClient?.isReady) return;
       await redisClient.setEx(key, ttlSeconds, JSON.stringify(value));
     } catch { /* silent */ }
   },
-
   async del(key) {
     try {
       if (!redisClient?.isReady) return;
       await redisClient.del(key);
     } catch { /* silent */ }
   },
-
   async delPattern(pattern) {
     try {
       if (!redisClient?.isReady) return;
@@ -54,7 +55,6 @@ const cache = {
       if (keys.length) await redisClient.del(keys);
     } catch { /* silent */ }
   },
-
   async exists(key) {
     try {
       if (!redisClient?.isReady) return false;

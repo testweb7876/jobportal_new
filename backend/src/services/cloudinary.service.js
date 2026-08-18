@@ -3,6 +3,7 @@ const multer = require('multer');
 const streamifier = require('streamifier');
 const { AppError } = require('../utils/AppError');
 const logger = require('../config/logger');
+const { validateFileType, ALLOWED_IMAGE_TYPES, ALLOWED_DOCUMENT_TYPES } = require('../utils/fileValidator');
 
 // ─── MULTER MEMORY STORAGE ───────────────────────────────────────────────────
 const storage = multer.memoryStorage();
@@ -67,6 +68,11 @@ const streamUpload = (buffer, options) => {
 // ─── UPLOAD IMAGE ─────────────────────────────────────────────────────────────
 exports.uploadToCloudinary = async (file, folder = 'avatar', options = {}) => {
   try {
+    const isImageFolder = ['avatar', 'company_logo', 'gallery'].includes(folder);
+    const allowedTypes = isImageFolder
+      ? ALLOWED_IMAGE_TYPES
+      : [...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOCUMENT_TYPES];
+    await validateFileType(file.buffer, allowedTypes);
     const folderPath = FOLDERS[folder] || `jobportal/${folder}`;
 
     const uploadOptions = {

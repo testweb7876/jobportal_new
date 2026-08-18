@@ -5,8 +5,9 @@ const { protect } = require('../middleware/auth.middleware');
 const { authLimiter } = require('../middleware/auth.middleware');
 const validate = require('../middleware/validate.middleware');
 const { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, changePasswordSchema } = require('../validators/auth.validator');
+const { verifyCaptcha } = require('../middleware/captcha.middleware');
 
-router.post('/register',          authLimiter, validate(registerSchema),       authController.register);
+router.post('/register', authLimiter, verifyCaptcha, validate(registerSchema), authController.register);
 router.post('/login',             authLimiter, validate(loginSchema),           authController.login);
 router.post('/refresh-token',                                                    authController.refreshToken);
 router.post('/logout',            protect,                                       authController.logout);

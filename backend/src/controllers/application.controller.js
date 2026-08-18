@@ -14,48 +14,73 @@ exports.applyJob = asyncHandler(async (req, res, next) => {
   const job = await Job.findOne({ _id: jobId, status: 'approved' }).populate('uid', 'email firstName');
   if (!job) return next(new AppError('Job not found or not accepting applications.', 404));
 
-  // Check if expired
   if (job.expiresAt && new Date() > job.expiresAt) {
     return next(new AppError('This job posting has expired.', 400));
   }
 
-  // Duplicate apply check
   const existing = await Application.findOne({ jobId, uid: req.user._id }).setOptions({ includeDeleted: true });
   if (existing) return next(new AppError('You have already applied for this job.', 409));
 
-  // Check package quota
-  const pkg = await UserPackage.findOne({ uid: req.user._id, status: true, isActive: true, endDate: { $gt: new Date() } });
-  if (!pkg || pkg.remainingJobApply <= 0) {
+  const pkg = await UserPackage.findOneAndUpdate(
+    {
+      uid: req.user._id,
+      status: true,
+      isActive: true,
+      endDate: { $gt: new Date() },
+      $or: [
+        { remainingJobApply: -1 },           
+        { remainingJobApply: { $gt: 0 } },   
+      ],
+    },
+    [
+      {
+        $set: {
+          remainingJobApply: {
+            $cond: [
+              { $eq: ['$remainingJobApply', -1] },
+              -1,                                          
+              { $subtract: ['$remainingJobApply', 1] },     
+            ],
+          },
+        },
+      },
+    ],
+    { new: true }
+  );
+
+  if (!pkg) {
     return next(new AppError('You have reached your application limit. Please upgrade your package.', 403));
   }
 
-  // Snapshot resume at time of apply
   let resumeSnapshot = null;
   if (cvId) {
     const resume = await Resume.findById(cvId).lean();
     resumeSnapshot = resume;
   }
 
-  const application = await Application.create({
-    jobId,
-    uid: req.user._id,
-    cvId,
-    companyId: job.companyId,
-    coverLetterId,
-    applyMessage,
-    quickApply: quickApply || false,
-    resumeSnapshot,
-    statusHistory: [{ status: 'applied', note: 'Application submitted', changedBy: req.user._id }],
-    userpackageId: pkg._id,
-  });
+  let application;
+  try {
+    application = await Application.create({
+      jobId,
+      uid: req.user._id,
+      cvId,
+      companyId: job.companyId,
+      coverLetterId,
+      applyMessage,
+      quickApply: quickApply || false,
+      resumeSnapshot,
+      statusHistory: [{ status: 'applied', note: 'Application submitted', changedBy: req.user._id }],
+      userpackageId: pkg._id,
+    });
+  } catch (err) {
+    if (pkg.remainingJobApply !== -1) {
+      await UserPackage.findByIdAndUpdate(pkg._id, { $inc: { remainingJobApply: 1 } });
+    }
+    throw err; 
+  }
 
-  // Deduct quota
-  await UserPackage.findByIdAndUpdate(pkg._id, { $inc: { remainingJobApply: -1 } });
-
-  // Update job applications count
   await Job.findByIdAndUpdate(jobId, { $inc: { applicationsCount: 1 } });
 
-  // Notify employer
   if (job.uid) {
     await notificationService.create({
       recipientId: job.uid._id,
@@ -65,7 +90,6 @@ exports.applyJob = asyncHandler(async (req, res, next) => {
       message: `Someone applied for your job "${job.title}"`,
       refModel: 'Application',
       refId: application._id,
-      // email handled by the direct send below — keep this in-app only to avoid sending two emails
       channels: { inApp: true },
     });
     try {
@@ -73,7 +97,6 @@ exports.applyJob = asyncHandler(async (req, res, next) => {
     } catch { /* silent */ }
   }
 
-  // Notify applicant
   await notificationService.create({
     recipientId: req.user._id,
     type: 'system',
@@ -83,7 +106,6 @@ exports.applyJob = asyncHandler(async (req, res, next) => {
     refId: application._id,
   });
 
-  // Email — confirm the application was received (template existed but was never called before)
   try {
     await emailService.sendApplicationConfirmation(req.user, job);
   } catch { /* silent */ }
@@ -300,60 +322,16 @@ exports.getCompanyApplicationsOverview = asyncHandler(async (req, res, next) => 
   sendSuccess(res, { stats, total, recent }, 'Company applications overview');
 });
 
-exports.getResume = async (req, res) => {
-  try {
-    const resume = await Resume.findOne({
-      _id: req.params.id,
-      uid: req.user._id,
-    })
+exports.getResume = asyncHandler(async (req, res, next) => {
+  const resume = await Resume.findOne({ _id: req.params.id, uid: req.user._id });
+  if (!resume) return next(new AppError('Resume not found', 404));
+  sendSuccess(res, { resume });
+});
 
-    if (!resume) {
-      return res.status(404).json({
-        success: false,
-        message: 'Resume not found',
-      })
-    }
-
-    res.json({
-      success: true,
-      resume,
-    })
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    })
-  }
-}
-
-exports.updateResume = async (req, res) => {
-  try {
-    const resume = await Resume.findOneAndUpdate(
-      {
-        _id: req.params.id,
-        uid: req.user._id,
-      },
-      req.body,
-      {
-        new: true,
-      }
-    )
-
-    if (!resume) {
-      return res.status(404).json({
-        success: false,
-        message: 'Resume not found',
-      })
-    }
-
-    res.json({
-      success: true,
-      resume,
-    })
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    })
-  }
-}
+exports.updateResume = asyncHandler(async (req, res, next) => {
+  const resume = await Resume.findOneAndUpdate(
+    { _id: req.params.id, uid: req.user._id }, req.body, { new: true }
+  );
+  if (!resume) return next(new AppError('Resume not found', 404));
+  sendSuccess(res, { resume }, 'Resume updated');
+});

@@ -11,7 +11,7 @@ const { cache }        = require('../config/redis');
 const emailService     = require('../services/email.service');
 const notificationService = require('../services/notification.service');
 const logger           = require('../config/logger');
-
+const refundService = require('../services/refund.service');
 // ══════════════════════════════════════════════════════════════════════════════
 //  SHARED  (admin + superadmin)
 // ══════════════════════════════════════════════════════════════════════════════
@@ -76,7 +76,7 @@ exports.getDashboard = asyncHandler(async (req, res) => {
 // ─── USER MANAGEMENT ─────────────────────────────────────────────────────────
 exports.getUsers = asyncHandler(async (req, res) => {
   const page  = parseInt(req.query.page)  || 1;
-  const limit = parseInt(req.query.limit) || 20;
+  const limit = Math.min(parseInt(req.query.limit) || 20, 50);
   const filter = {};
 
   if (req.query.role)   filter.role   = req.query.role;
@@ -188,7 +188,7 @@ exports.deleteUser = asyncHandler(async (req, res, next) => {
 // ─── JOB MANAGEMENT ──────────────────────────────────────────────────────────
 exports.getAllJobs = asyncHandler(async (req, res) => {
   const page  = parseInt(req.query.page)  || 1;
-  const limit = parseInt(req.query.limit) || 20;
+  const limit = Math.min(parseInt(req.query.limit) || 20, 50);
   const filter = {};
   if (req.query.status)    filter.status    = req.query.status;
   if (req.query.companyId) filter.companyId = req.query.companyId;
@@ -212,7 +212,7 @@ exports.getAllJobs = asyncHandler(async (req, res) => {
 // ─── REPORTS MANAGEMENT ───────────────────────────────────────────────────────
 exports.getReports = asyncHandler(async (req, res) => {
   const page  = parseInt(req.query.page)  || 1;
-  const limit = parseInt(req.query.limit) || 20;
+  const limit = Math.min(parseInt(req.query.limit) || 20, 50);
   const filter = {};
   if (req.query.status) filter.status = req.query.status;
 
@@ -257,7 +257,7 @@ exports.resolveReport = asyncHandler(async (req, res, next) => {
 // ─── ACTIVITY LOGS ────────────────────────────────────────────────────────────
 exports.getActivityLogs = asyncHandler(async (req, res) => {
   const page  = parseInt(req.query.page)  || 1;
-  const limit = parseInt(req.query.limit) || 50;
+  const limit = Math.min(parseInt(req.query.limit) || 20, 100);
   const filter = {};
   if (req.query.uid)    filter.uid    = req.query.uid;
   if (req.query.action) filter.action = req.query.action;
@@ -276,7 +276,7 @@ exports.getActivityLogs = asyncHandler(async (req, res) => {
 // ─── INVOICES ─────────────────────────────────────────────────────────────────
 exports.getInvoices = asyncHandler(async (req, res) => {
   const page  = parseInt(req.query.page)  || 1;
-  const limit = parseInt(req.query.limit) || 20;
+  const limit = Math.min(parseInt(req.query.limit) || 20, 50);
   const filter = {};
   if (req.query.paymentStatus) filter.paymentStatus = req.query.paymentStatus;
   if (req.query.payMethod)     filter.payMethod     = req.query.payMethod;
@@ -309,7 +309,7 @@ exports.getBankDetails = asyncHandler(async (req, res) => {
 // ─── USER PACKAGES ────────────────────────────────────────────────────────────
 exports.getUserPackages = asyncHandler(async (req, res) => {
   const page  = parseInt(req.query.page)  || 1;
-  const limit = parseInt(req.query.limit) || 20;
+  const limit = Math.min(parseInt(req.query.limit) || 20, 50);
   const filter = {};
   if (req.query.uid)      filter.uid      = req.query.uid;
   if (req.query.isActive) filter.isActive = req.query.isActive === 'true';
@@ -599,7 +599,7 @@ exports.deletePackage = asyncHandler(async (req, res, next) => {
 // ─── REFUND MANAGEMENT (superadmin only) ──────────────────────────────────────
 exports.getRefundRequests = asyncHandler(async (req, res) => {
   const page  = parseInt(req.query.page)  || 1;
-  const limit = parseInt(req.query.limit) || 20;
+  const limit = Math.min(parseInt(req.query.limit) || 20, 50);
   const filter = { refundStatus: { $in: ['requested', 'processing', 'refunded'] } };
   if (req.query.refundStatus) filter.refundStatus = req.query.refundStatus;
 
@@ -623,6 +623,15 @@ exports.processRefund = asyncHandler(async (req, res, next) => {
     .populate('uid', 'email firstName');
   if (!invoice) return next(new AppError('Invoice not found.', 404));
 
+  if (status === 'refunded') {
+    try {
+      await refundService.refundInvoice(invoice);
+    } catch (err) {
+      logger.error('Gateway refund failed:', err);
+      return next(new AppError(err.message || 'Refund failed at payment gateway.', 502));
+    }
+  }
+
   const updateData = { refundStatus: status };
   if (status === 'refunded') {
     updateData.paymentStatus = 'refunded';
@@ -631,7 +640,6 @@ exports.processRefund = asyncHandler(async (req, res, next) => {
 
   await Invoice.findByIdAndUpdate(invoice._id, updateData);
 
-  // Notify user
   await notificationService.create({
     recipientId: invoice.uid._id,
     type: 'system',

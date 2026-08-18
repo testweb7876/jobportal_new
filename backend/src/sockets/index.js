@@ -1,6 +1,7 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const logger = require('../config/logger');
+const { setupSocketRedisAdapter } = require('../config/socketRedisAdapter');
 
 let io;
 
@@ -12,6 +13,7 @@ const initSocket = (server) => {
     },
     pingTimeout: 60000,
   });
+   setupSocketRedisAdapter(io);
 
   // ── Auth Middleware ────────────────────────────────────────────────────────
   io.use(async (socket, next) => {

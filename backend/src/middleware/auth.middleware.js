@@ -136,11 +136,11 @@ exports.verifiedOnly = (req, res, next) => {
   next();
 };
 
-// ─── RATE LIMITER FOR AUTH ────────────────────────────────────────────────────
+// ─── RATE LIMITER FOR AUTH ────────────────────────────────────────────────
 const rateLimit = require('express-rate-limit');
 exports.authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 5,
+  max: process.env.NODE_ENV === 'test' ? 1000 : (parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 5), 
   message: { success: false, message: 'Too many login attempts. Please try again after 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,

@@ -16,9 +16,9 @@ const path = require('path');
 require('dotenv').config();
 
 const connectDB = require('./config/database');
-// const connectRedis = require('./config/redis');
+const connectRedis = require('./config/redis');
 const { initSocket } = require('./sockets');
-// const { initQueues } = require('./queues');
+const { initQueues } = require('./queues');
 const { initCronJobs } = require('./cron');
 const logger = require('./config/logger');
 const errorHandler = require('./middleware/errorHandler');
@@ -35,7 +35,7 @@ const server = http.createServer(app);
 
 // ─── CONNECT DB & REDIS ────────────────────────────────────────────────────
 connectDB();
-// connectRedis();
+connectRedis();
 
 // ─── SECURITY MIDDLEWARE ───────────────────────────────────────────────────
 app.use(helmet({
@@ -112,13 +112,17 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 }));
 
 // ─── HEALTH CHECK ──────────────────────────────────────────────────────────
-app.get('/health', (req, res) => {
-  res.json({
-    success: true,
-    status: 'healthy',
+app.get('/health', async (req, res) => {
+  const mongoose = require('mongoose');
+  const { getRedis } = require('./config/redis');
+  const dbOk = mongoose.connection.readyState === 1;
+  const redisOk = getRedis()?.isReady || false;
+  res.status(dbOk ? 200 : 503).json({
+    success: dbOk,
+    status: dbOk ? 'healthy' : 'degraded',
+    db: dbOk ? 'connected' : 'disconnected',
+    redis: redisOk ? 'connected' : 'disconnected',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV,
-    version: process.env.npm_package_version || '1.0.0',
   });
 });
 
@@ -144,6 +148,9 @@ app.use(`${apiPrefix}/search`,        require('./routes/search.routes'));
 app.use(`${apiPrefix}/interviews`,    require('./routes/interview.routes'));
 app.use(`${apiPrefix}/followers`,     require('./routes/follower.routes'));
 app.use(`${apiPrefix}/reports`,       require('./routes/report.routes'));
+app.use(`${apiPrefix}/2fa`, require('./routes/twoFactor.routes'));
+app.use(`${apiPrefix}/reviews`, require('./routes/review.routes'));
+app.use('/', require('./routes/sitemap.routes'));
 
 // ─── 404 HANDLER ──────────────────────────────────────────────────────────
 app.use('*', (req, res) => {
@@ -160,17 +167,20 @@ app.use(errorHandler);
 initSocket(server);
 
 // ─── QUEUES & CRON ────────────────────────────────────────────────────────
-// if (process.env.NODE_ENV !== 'test') {
-//   initQueues();
-//   if (process.env.ENABLE_CRON === 'true') initCronJobs();
-// }
+if (process.env.NODE_ENV !== 'test') {
+  initQueues();
+  if (process.env.ENABLE_CRON === 'true') initCronJobs();
+}
 
 // ─── START SERVER ──────────────────────────────────────────────────────────
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  logger.info(`🚀 Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
-  logger.info(`📚 API Docs: http://localhost:${PORT}/api-docs`);
-});
+const PORT = process.env.PORT || 4000;
+
+if (process.env.NODE_ENV !== 'test') {
+  server.listen(PORT, () => {
+    logger.info(`🚀 Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
+    logger.info(`📚 API Docs: http://localhost:${PORT}/api-docs`);
+  });
+}
 
 // ─── UNHANDLED REJECTIONS ──────────────────────────────────────────────────
 process.on('unhandledRejection', (err) => {

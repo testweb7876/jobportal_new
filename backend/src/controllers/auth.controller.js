@@ -68,6 +68,7 @@ exports.login = asyncHandler(async (req, res, next) => {
   if (user.status === 'suspended' || user.status === 'banned') {
     return next(new AppError(`Your account has been ${user.status}. Contact support.`, 403));
   }
+  
 
   // Log activity
   await ActivityLog.create({
@@ -79,6 +80,10 @@ exports.login = asyncHandler(async (req, res, next) => {
     userAgent: req.headers['user-agent'],
   });
 
+  if (user.twoFactorEnabled) {
+    return sendSuccess(res, { requiresTwoFactor: true, userId: user._id }, 'Please enter your 2FA code.');
+  }
+  // otherwise continue as normal:
   await authService.sendTokenResponse(user, 200, res, req);
 });
 
@@ -168,16 +173,14 @@ exports.verifyEmail = asyncHandler(async (req, res, next) => {
 exports.resendVerification = asyncHandler(async (req, res, next) => {
   const { email } = req.body;
   const user = await User.findOne({ email });
-
-  if (!user) return next(new AppError('No account found with this email.', 404));
-  if (user.isEmailVerified) return next(new AppError('Email is already verified.', 400));
-
+  if (!user || user.isEmailVerified) {
+    return sendSuccess(res, {}, 'If an unverified account exists, a verification email has been sent.');
+  }
   const verifyToken = user.createEmailVerificationToken();
   await user.save({ validateBeforeSave: false });
-
   await emailService.sendWelcome(user, `${process.env.CLIENT_URL}/verify-email/${verifyToken}`);
 
-  sendSuccess(res, {}, 'Verification email sent.');
+  sendSuccess(res, {}, 'If an unverified account exists, a verification email has been sent.');
 });
 
 // ─── FORGOT PASSWORD ──────────────────────────────────────────────────────────

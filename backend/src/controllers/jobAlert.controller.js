@@ -1,107 +1,32 @@
 const { JobAlert } = require('../models/Misc.model');
+const { AppError, asyncHandler, sendSuccess } = require('../utils/AppError');
 
-// ─── GET ALL ALERTS ─────────────────────────────────────────
-exports.getAlerts = async (req, res) => {
-  try {
-    const alerts = await JobAlert.find({
-      uid: req.user._id,
-      isDeleted: false,
-    }).sort({ createdAt: -1 });
+exports.getAlerts = asyncHandler(async (req, res) => {
+  const alerts = await JobAlert.find({ uid: req.user._id, isDeleted: false }).sort({ createdAt: -1 });
+  sendSuccess(res, { alerts }, 'Alerts fetched');
+});
 
-    res.json({
-      success: true,
-      alerts,
-    });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
-  }
-};
+exports.createAlert = asyncHandler(async (req, res) => {
+  const alert = await JobAlert.create({ ...req.body, uid: req.user._id });
+  sendSuccess(res, { alert }, 'Job alert created successfully', 201);
+});
 
-// ─── CREATE ALERT ───────────────────────────────────────────
-exports.createAlert = async (req, res) => {
-  try {
-    const alert = await JobAlert.create({
-      ...req.body,
-      uid: req.user._id,
-    });
+exports.updateAlert = asyncHandler(async (req, res, next) => {
+  const alert = await JobAlert.findOneAndUpdate(
+    { _id: req.params.id, uid: req.user._id },
+    req.body,
+    { new: true }
+  );
+  if (!alert) return next(new AppError('Alert not found', 404));
+  sendSuccess(res, { alert }, 'Alert updated successfully');
+});
 
-    res.status(201).json({
-      success: true,
-      alert,
-      message: 'Job alert created successfully',
-    });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
-  }
-};
-
-// ─── UPDATE ALERT ───────────────────────────────────────────
-exports.updateAlert = async (req, res) => {
-  try {
-    const alert = await JobAlert.findOneAndUpdate(
-      {
-        _id: req.params.id,
-        uid: req.user._id,
-      },
-      req.body,
-      { new: true }
-    );
-
-    if (!alert) {
-      return res.status(404).json({
-        success: false,
-        message: 'Alert not found',
-      });
-    }
-
-    res.json({
-      success: true,
-      alert,
-      message: 'Alert updated successfully',
-    });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
-  }
-};
-
-// ─── DELETE ALERT ───────────────────────────────────────────
-exports.deleteAlert = async (req, res) => {
-  try {
-    const alert = await JobAlert.findOneAndUpdate(
-      {
-        _id: req.params.id,
-        uid: req.user._id,
-      },
-      {
-        isDeleted: true,
-      },
-      { new: true }
-    );
-
-    if (!alert) {
-      return res.status(404).json({
-        success: false,
-        message: 'Alert not found',
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Alert deleted successfully',
-    });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
-  }
-};
+exports.deleteAlert = asyncHandler(async (req, res, next) => {
+  const alert = await JobAlert.findOneAndUpdate(
+    { _id: req.params.id, uid: req.user._id },
+    { isDeleted: true },
+    { new: true }
+  );
+  if (!alert) return next(new AppError('Alert not found', 404));
+  sendSuccess(res, {}, 'Alert deleted successfully');
+});
