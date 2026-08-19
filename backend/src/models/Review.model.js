@@ -38,7 +38,7 @@ const reviewSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 reviewSchema.index({ companyId: 1, status: 1 });
-reviewSchema.index({ uid: 1, companyId: 1 }, { unique: true }); // one review per user per company
+reviewSchema.index({ uid: 1, companyId: 1 });
 reviewSchema.index({ createdAt: -1 });
 
 reviewSchema.pre(/^find/, function (next) {

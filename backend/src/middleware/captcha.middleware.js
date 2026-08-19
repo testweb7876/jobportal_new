@@ -3,7 +3,10 @@ const { AppError, asyncHandler } = require('../utils/AppError');
 
 exports.verifyCaptcha = asyncHandler(async (req, res, next) => {
   // ── NEW: skip captcha verification during tests ────────────────────────
-  if (process.env.NODE_ENV === 'test') {
+  if (
+    process.env.NODE_ENV === 'test' ||
+    process.env.NODE_ENV === 'development'
+  ) {
     return next();
   }
   // ── END NEW ──────────────────────────────────────────────────────────

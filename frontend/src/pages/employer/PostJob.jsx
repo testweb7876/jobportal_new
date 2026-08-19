@@ -93,7 +93,7 @@ export default function EmpPostJob() {
   })
   const { data: careerLevelsData } = useQuery({
     queryKey: ['career-levels'],
-    queryFn: () => categoriesAPI.getCareerLevels().then(r => r.data?.data || []),
+    queryFn: () => categoriesAPI.getCareerLevels().then(r => r.data?.careerLevels || []),
     staleTime: Infinity,
   })
   const { data: jobTypesData } = useQuery({

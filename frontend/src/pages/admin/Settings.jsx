@@ -16,6 +16,20 @@ export default function AdminSettings() {
     queryFn: () => settingsAPI.getBankDetails(),
   })
 
+  const { data: reviewSettingsData } = useQuery({
+    queryKey: ['review-settings'],
+    queryFn: () => settingsAPI.getReviewSettings().then(r => r.data?.reviewSettings),
+  })
+
+  const autoApprove = reviewSettingsData?.autoApprove ?? false
+
+  const toggleMutation = useMutation({
+    mutationFn: (val) => settingsAPI.updateReviewSettings({ autoApprove: val }),
+    onSuccess: () => { toast.success('Updated!'); qc.invalidateQueries({ queryKey: ['review-settings'] }) },
+    onError: () => toast.error('Failed to update setting'),
+  })
+
+
   const { register: regBank, handleSubmit: handleBank, reset: resetBank } = useForm()
 
   useEffect(() => {
@@ -88,6 +102,24 @@ export default function AdminSettings() {
             {bankMutation.isPending ? 'Saving...' : 'Save Bank Details'}
           </button>
         </form>
+      </div>
+
+      <div className="card p-6 flex items-center justify-between gap-4">
+        <div>
+          <h2 className="font-display font-bold text-gray-900 dark:text-white">Auto-Approve Reviews</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            When ON, new reviews are published immediately without admin approval.
+            When OFF, every review stays pending until an admin approves it on the Reviews page.
+          </p>
+        </div>
+        <button
+          onClick={() => toggleMutation.mutate(!autoApprove)}
+          disabled={toggleMutation.isPending}
+          className={`w-12 h-7 rounded-full transition-colors relative flex-shrink-0 ${autoApprove ? 'bg-primary-600' : 'bg-gray-300 dark:bg-dark-600'}`}>
+          <span
+            className={`absolute left-1 top-1 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${autoApprove ? 'translate-x-5' : 'translate-x-0'}`}
+          />
+        </button>
       </div>
 
       {/* ── System Error Logs ────────────────────────────────────────────── */}

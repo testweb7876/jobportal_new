@@ -245,6 +245,8 @@ export function StatusBadge({ status }) {
     hired: { v: 'success', l: 'Hired' },
     pending: { v: 'warning', l: 'Pending' },
     interview_scheduled: { v: 'primary', l: 'Interview' },
+    interviewed: { v: 'primary', l: 'Interviewed' }, 
+    offered: { v: 'success', l: 'Offered' }, 
     shortlisted: { v: 'primary', l: 'Shortlisted' },
     reviewed: { v: 'primary', l: 'Reviewed' },
     rejected: { v: 'danger', l: 'Rejected' },

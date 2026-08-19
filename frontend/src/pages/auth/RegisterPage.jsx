@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import HCaptcha from '@hcaptcha/react-hcaptcha'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { motion } from 'framer-motion'
@@ -15,21 +16,29 @@ export default function RegisterPage() {
   const defaultRole = searchParams.get('role') || 'jobseeker'
   const { setAuth } = useAuthStore()
   const navigate = useNavigate()
+  const captchaRef = useRef()
+  const [captchaToken, setCaptchaToken] = useState(null)
+
 
   const { register, handleSubmit, watch, formState: { errors } } = useForm({
     defaultValues: { role: defaultRole }
   })
   const selectedRole = watch('role')
-
   const onSubmit = async (data) => {
+    if (!captchaToken) {
+      toast.error('Please complete the captcha')
+      return
+    }
     setLoading(true)
     try {
-      const res = await authAPI.register(data)
+      const res = await authAPI.register({ ...data, captchaToken })
       const { user, accessToken, refreshToken } = res.data
       setAuth(user, accessToken, refreshToken)
-      toast.success('Account created! Please check your email to verify. 📧')
+      toast.success('Account created! Please check your email to verify.')
       navigate('/dashboard')
     } catch (err) {
+      captchaRef.current?.resetCaptcha()
+      setCaptchaToken(null)
       toast.error(err.response?.data?.message || 'Registration failed')
     } finally {
       setLoading(false)
@@ -168,6 +177,12 @@ export default function RegisterPage() {
               <Link to="/terms" className="text-primary-600 hover:underline">Terms of Service</Link> and{' '}
               <Link to="/privacy" className="text-primary-600 hover:underline">Privacy Policy</Link>.
             </p>
+            <HCaptcha
+              ref={captchaRef}
+              sitekey={import.meta.env.VITE_HCAPTCHA_SITE_KEY}
+              onVerify={(token) => setCaptchaToken(token)}
+              onExpire={() => setCaptchaToken(null)}
+            />
 
             <button type="submit" disabled={loading}
               className="btn-primary w-full justify-center py-3 text-base">

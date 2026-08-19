@@ -148,6 +148,7 @@ app.use(`${apiPrefix}/search`,        require('./routes/search.routes'));
 app.use(`${apiPrefix}/interviews`,    require('./routes/interview.routes'));
 app.use(`${apiPrefix}/followers`,     require('./routes/follower.routes'));
 app.use(`${apiPrefix}/reports`,       require('./routes/report.routes'));
+app.use(`${apiPrefix}/contact`, require('./routes/contact.routes'));
 app.use(`${apiPrefix}/2fa`, require('./routes/twoFactor.routes'));
 app.use(`${apiPrefix}/reviews`, require('./routes/review.routes'));
 app.use('/', require('./routes/sitemap.routes'));

@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-do
 import { useForm } from 'react-hook-form'
 import { motion } from 'framer-motion'
 import { Mail, Lock, Eye, EyeOff, Briefcase, ArrowRight } from 'lucide-react'
-import { authAPI } from '@/services/api'
+import { authAPI, twoFactorAPI } from '@/services/api'
 import useAuthStore from '@/store/authStore'
 import toast from 'react-hot-toast'
 import SocialAuthButtons from '@/components/auth/SocialAuthButtons'
@@ -16,7 +16,8 @@ export default function LoginPage() {
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const from = location.state?.from?.pathname || '/dashboard'
-
+  const [twoFactorUserId, setTwoFactorUserId] = useState(null)
+  const [twoFactorCode, setTwoFactorCode] = useState('')
   const { register, handleSubmit, formState: { errors } } = useForm()
 
   useEffect(() => {
@@ -32,6 +33,15 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const res = await authAPI.login(data)
+
+      // ── NEW: handle 2FA requirement ──
+      if (res.data.requiresTwoFactor) {
+        setTwoFactorUserId(res.data.userId)
+        setLoading(false)
+        return
+      }
+      // ── END NEW ──
+
       const { user, accessToken, refreshToken } = res.data
       setAuth(user, accessToken, refreshToken)
       toast.success(`Welcome back, ${user.firstName}! 👋`)
@@ -42,6 +52,22 @@ export default function LoginPage() {
       setLoading(false)
     }
   }
+
+  const handleTwoFactorSubmit = async () => {
+    setLoading(true)
+    try {
+      const res = await twoFactorAPI.verifyLogin({ userId: twoFactorUserId, token: twoFactorCode })
+      const { user, accessToken, refreshToken } = res.data
+      setAuth(user, accessToken, refreshToken)
+      toast.success(`Welcome back, ${user.firstName}! 👋`)
+      navigate(from, { replace: true })
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Invalid code')
+    } finally {
+      setLoading(false)
+    }
+  }
+
 
   return (
     <div className="min-h-screen flex">
@@ -96,53 +122,71 @@ export default function LoginPage() {
           <h1 className="font-display text-3xl font-bold text-gray-900 dark:text-white mb-2">Welcome back</h1>
           <p className="text-gray-500 dark:text-gray-400 mb-8">Sign in to your account to continue</p>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-            {/* Email */}
-            <div>
-              <label className="label">Email Address</label>
-              <div className="relative">
-                <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input {...register('email', {
-                  required: 'Email is required',
-                  pattern: { value: /\S+@\S+\.\S+/, message: 'Enter a valid email' }
-                })}
-                  type="email" placeholder="you@example.com"
-                  className={`input pl-10 ${errors.email ? 'input-error' : ''}`} />
-              </div>
-              {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>}
+          {twoFactorUserId ? (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-500">Enter the 6-digit code from your authenticator app.</p>
+              <input
+                value={twoFactorCode}
+                onChange={e => setTwoFactorCode(e.target.value)}
+                placeholder="123456"
+                maxLength={6}
+                className="input text-center text-2xl tracking-widest"
+              />
+              <button onClick={handleTwoFactorSubmit} disabled={loading || twoFactorCode.length !== 6}
+                className="btn-primary w-full justify-center py-3">
+                {loading ? 'Verifying...' : 'Verify & Sign In'}
+              </button>
             </div>
+          ) : (
 
-            {/* Password */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="label mb-0">Password</label>
-                <Link to="/forgot-password" className="text-xs text-primary-600 hover:underline">Forgot password?</Link>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+              {/* Email */}
+              <div>
+                <label className="label">Email Address</label>
+                <div className="relative">
+                  <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input {...register('email', {
+                    required: 'Email is required',
+                    pattern: { value: /\S+@\S+\.\S+/, message: 'Enter a valid email' }
+                  })}
+                    type="email" placeholder="you@example.com"
+                    className={`input pl-10 ${errors.email ? 'input-error' : ''}`} />
+                </div>
+                {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>}
               </div>
-              <div className="relative">
-                <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input {...register('password', { required: 'Password is required' })}
-                  type={showPass ? 'text' : 'password'} placeholder="Your password"
-                  className={`input pl-10 pr-10 ${errors.password ? 'input-error' : ''}`} />
-                <button type="button" onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                  {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-              {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>}
-            </div>
 
-            <button type="submit" disabled={loading}
-              className="btn-primary w-full justify-center py-3 text-base mt-2">
-              {loading ? (
-                <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                </svg>
-              ) : (
-                <><span>Sign In</span><ArrowRight size={16}/></>
-              )}
-            </button>
-          </form>
+              {/* Password */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="label mb-0">Password</label>
+                  <Link to="/forgot-password" className="text-xs text-primary-600 hover:underline">Forgot password?</Link>
+                </div>
+                <div className="relative">
+                  <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input {...register('password', { required: 'Password is required' })}
+                    type={showPass ? 'text' : 'password'} placeholder="Your password"
+                    className={`input pl-10 pr-10 ${errors.password ? 'input-error' : ''}`} />
+                  <button type="button" onClick={() => setShowPass(!showPass)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>}
+              </div>
+
+              <button type="submit" disabled={loading}
+                className="btn-primary w-full justify-center py-3 text-base mt-2">
+                {loading ? (
+                  <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                  </svg>
+                ) : (
+                  <><span>Sign In</span><ArrowRight size={16}/></>
+                )}
+              </button>
+            </form>
+          )}
           <SocialAuthButtons />
 
           <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6">

@@ -34,6 +34,8 @@ router.delete('/categories/:id',protect,adminOnly, hasPermission('categories'), 
 router.get('/packages-list',   protect, adminOnly, hasPermission('packages'), admin.getPackagesList);
 router.get('/revenue',    protect, adminOnly, hasPermission('revenue'),    admin.getRevenueReport);
 router.get('/analytics',  protect, adminOnly, hasPermission('analytics'),  admin.getPlatformAnalytics);
+router.get('/settings/reviews',   admin.getReviewSettings);
+router.patch('/settings/reviews', admin.updateReviewSettings);
 
 router.use(superAdminOnly);
 router.get('/admins',                      admin.getAdmins);

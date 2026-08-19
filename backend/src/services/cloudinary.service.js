@@ -3,6 +3,7 @@ const multer = require('multer');
 const streamifier = require('streamifier');
 const { AppError } = require('../utils/AppError');
 const logger = require('../config/logger');
+const path = require('path');  
 const { validateFileType, ALLOWED_IMAGE_TYPES, ALLOWED_DOCUMENT_TYPES } = require('../utils/fileValidator');
 
 // ─── MULTER MEMORY STORAGE ───────────────────────────────────────────────────
@@ -75,20 +76,28 @@ exports.uploadToCloudinary = async (file, folder = 'avatar', options = {}) => {
     await validateFileType(file.buffer, allowedTypes);
     const folderPath = FOLDERS[folder] || `jobportal/${folder}`;
 
+    const isImage = file.mimetype.startsWith('image/');
+
     const uploadOptions = {
       folder: folderPath,
-      resource_type: 'auto',
-      quality: 'auto',
-      fetch_format: 'auto',
+      resource_type: isImage ? 'image' : 'raw',
       ...options,
     };
 
-    // Image-specific optimizations
-    if (file.mimetype.startsWith('image/')) {
+    if (isImage) {
+      uploadOptions.quality = 'auto:good';
+      uploadOptions.fetch_format = 'auto';
       uploadOptions.transformation = [
         { quality: 'auto:good' },
         { fetch_format: 'auto' },
       ];
+    } else {
+      const ext = path.extname(file.originalname || '').toLowerCase();
+      const baseName = path
+        .basename(file.originalname || 'file', ext)
+        .replace(/[^a-zA-Z0-9-_]/g, '_')
+        .slice(0, 80);
+      uploadOptions.public_id = `${baseName}-${Date.now()}${ext}`;
     }
 
     const result = await streamUpload(file.buffer, uploadOptions);
@@ -109,7 +118,7 @@ exports.uploadToCloudinary = async (file, folder = 'avatar', options = {}) => {
 };
 
 // ─── DELETE FROM CLOUDINARY ───────────────────────────────────────────────────
-exports.deleteFromCloudinary = async (publicId, resourceType = 'image') => {
+exports.deleteFromCloudinary = async (publicId, resourceType = 'image') => { 
   try {
     if (!publicId) return;
     const result = await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });

@@ -10,6 +10,7 @@ router.patch('/:id',                 protect, reviewController.updateReview);
 router.delete('/:id',                protect, reviewController.deleteReview);
 router.post('/:id/helpful',          protect, reviewController.toggleHelpful);
 router.post('/:id/respond',          protect, employerOnly, reviewController.respondToReview);
+router.get('/admin/all',             protect, adminOnly, reviewController.getAllReviewsAdmin);
 router.get('/admin/pending',         protect, adminOnly, reviewController.getPendingReviews);
 router.patch('/admin/:id/moderate',  protect, adminOnly, reviewController.moderateReview);
 

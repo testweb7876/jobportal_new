@@ -299,165 +299,167 @@ export default function AdminPackagesPage() {
         title={modal === 'edit' ? `Edit Package — ${editPkg?.title}` : 'Create New Package'}
         size="xl"
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          {/* Basic Info */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <label className="label">Package Name *</label>
-              <input
-                {...register('title', { required: 'Package name is required' })}
-                placeholder="e.g. Starter, Professional, Enterprise"
-                className={`input ${errors.title ? 'input-error' : ''}`}
-              />
-              {errors.title && <p className="mt-1 text-xs text-red-500">{errors.title.message}</p>}
-            </div>
-
-            <div>
-              <label className="label">Package For *</label>
-              <select {...register('packageFor')} className="input">
-                <option value="employer">Employer</option>
-                <option value="jobseeker">Job Seeker</option>
-                <option value="both">Both</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="label">Duration</label>
-              <div className="flex gap-2">
+        <div className="max-h-[75vh] overflow-y-auto pr-1 -mr-1">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            {/* Basic Info */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <label className="label">Package Name *</label>
                 <input
-                  {...register('packageTime', { required: true, min: 1 })}
-                  type="number" min="1"
-                  className="input w-24"
-                  placeholder="30"
+                  {...register('title', { required: 'Package name is required' })}
+                  placeholder="e.g. Starter, Professional, Enterprise"
+                  className={`input ${errors.title ? 'input-error' : ''}`}
                 />
-                <select {...register('packageTimeUnit')} className="input flex-1">
-                  <option value="days">Days</option>
-                  <option value="months">Months</option>
-                  <option value="years">Years</option>
+                {errors.title && <p className="mt-1 text-xs text-red-500">{errors.title.message}</p>}
+              </div>
+
+              <div>
+                <label className="label">Package For *</label>
+                <select {...register('packageFor')} className="input">
+                  <option value="employer">Employer</option>
+                  <option value="jobseeker">Job Seeker</option>
+                  <option value="both">Both</option>
                 </select>
               </div>
-            </div>
-          </div>
 
-          {/* Pricing */}
-          <div className="p-4 bg-gray-50 dark:bg-dark-800 rounded-xl space-y-3">
-            <h3 className="font-semibold text-gray-900 dark:text-white text-sm">Pricing</h3>
-            <div className="flex items-center gap-3">
-              <input
-                {...register('isFree')}
-                type="checkbox" id="isFree"
-                className="w-4 h-4 rounded text-primary-600"
-              />
-              <label htmlFor="isFree" className="text-sm font-medium text-gray-700 dark:text-gray-200 cursor-pointer">
-                This is a <strong>free</strong> package
-              </label>
-            </div>
-            {!isFree && (
               <div>
-                <label className="label">Price (USD) *</label>
-                <div className="relative">
-                  <DollarSign size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    {...register('price', { required: !isFree, min: { value: 1, message: 'Min $1' } })}
-                    type="number" min="0" step="0.01"
-                    placeholder="49.99"
-                    className={`input pl-9 ${errors.price ? 'input-error' : ''}`}
-                  />
-                </div>
-                {errors.price && <p className="mt-1 text-xs text-red-500">{errors.price.message}</p>}
-              </div>
-            )}
-          </div>
-
-          {/* Employer Features */}
-          {(pkgFor === 'employer' || pkgFor === 'both') && (
-            <div className="p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 rounded-xl">
-              <h3 className="font-semibold text-blue-800 dark:text-blue-300 text-sm mb-3 flex items-center gap-2">
-                <span className="badge badge-primary text-xs">Employer</span> Features
-              </h3>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { name: 'job',                  label: 'Job Posts' },
-                  { name: 'featuredJob',           label: 'Featured Jobs' },
-                  { name: 'companies',             label: 'Company Profiles' },
-                  { name: 'department',            label: 'Departments' },
-                  { name: 'resumeSearch',          label: 'Resume Searches' },
-                  { name: 'companyContactDetail',  label: 'Contact Detail Views' },
-                ].map(({ name, label }) => (
-                  <FeatureInput key={name} name={name} label={label} register={register} />
-                ))}
-              </div>
-              <div className="mt-3">
-                <label className="label text-xs">Job Listing Duration</label>
+                <label className="label">Duration</label>
                 <div className="flex gap-2">
                   <input
-                    {...register('jobTime', { min: 1 })}
+                    {...register('packageTime', { required: true, min: 1 })}
                     type="number" min="1"
                     className="input w-24"
                     placeholder="30"
                   />
-                  <select {...register('jobTimeUnit')} className="input flex-1">
+                  <select {...register('packageTimeUnit')} className="input flex-1">
                     <option value="days">Days</option>
                     <option value="months">Months</option>
+                    <option value="years">Years</option>
                   </select>
                 </div>
               </div>
             </div>
-          )}
 
-          {/* Jobseeker Features */}
-          {(pkgFor === 'jobseeker' || pkgFor === 'both') && (
-            <div className="p-4 bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800/30 rounded-xl">
-              <h3 className="font-semibold text-emerald-800 dark:text-emerald-300 text-sm mb-3 flex items-center gap-2">
-                <span className="badge badge-success text-xs">Job Seeker</span> Features
-              </h3>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { name: 'resume',               label: 'Resumes' },
-                  { name: 'featuredResume',        label: 'Featured Resumes' },
-                  { name: 'jobApply',              label: 'Applications' },
-                  { name: 'jobAlert',              label: 'Job Alerts' },
-                  { name: 'jobSearch',             label: 'Job Searches' },
-                  { name: 'coverletter',           label: 'Cover Letters' },
-                  { name: 'resumeContactDetail',   label: 'Contact Detail Views' },
-                ].map(({ name, label }) => (
-                  <FeatureInput key={name} name={name} label={label} register={register} />
-                ))}
+            {/* Pricing */}
+            <div className="p-4 bg-gray-50 dark:bg-dark-800 rounded-xl space-y-3">
+              <h3 className="font-semibold text-gray-900 dark:text-white text-sm">Pricing</h3>
+              <div className="flex items-center gap-3">
+                <input
+                  {...register('isFree')}
+                  type="checkbox" id="isFree"
+                  className="w-4 h-4 rounded text-primary-600"
+                />
+                <label htmlFor="isFree" className="text-sm font-medium text-gray-700 dark:text-gray-200 cursor-pointer">
+                  This is a <strong>free</strong> package
+                </label>
               </div>
+              {!isFree && (
+                <div>
+                  <label className="label">Price (USD) *</label>
+                  <div className="relative">
+                    <DollarSign size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      {...register('price', { required: !isFree, min: { value: 1, message: 'Min $1' } })}
+                      type="number" min="0" step="0.01"
+                      placeholder="49.99"
+                      className={`input pl-9 ${errors.price ? 'input-error' : ''}`}
+                    />
+                  </div>
+                  {errors.price && <p className="mt-1 text-xs text-red-500">{errors.price.message}</p>}
+                </div>
+              )}
             </div>
-          )}
 
-          {/* Status (edit only) */}
-          {modal === 'edit' && (
-            <div className="flex items-center gap-3">
-              <input
-                {...register('status')}
-                type="checkbox"
-                id="pkgStatus"
-                className="w-4 h-4 rounded text-primary-600"
-              />
-              <label htmlFor="pkgStatus" className="text-sm font-medium text-gray-700 dark:text-gray-200 cursor-pointer">
-                Package is <strong>active</strong> (visible to users)
-              </label>
+            {/* Employer Features */}
+            {(pkgFor === 'employer' || pkgFor === 'both') && (
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 rounded-xl">
+                <h3 className="font-semibold text-blue-800 dark:text-blue-300 text-sm mb-3 flex items-center gap-2">
+                  <span className="badge badge-primary text-xs">Employer</span> Features
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { name: 'job',                  label: 'Job Posts' },
+                    { name: 'featuredJob',           label: 'Featured Jobs' },
+                    { name: 'companies',             label: 'Company Profiles' },
+                    { name: 'department',            label: 'Departments' },
+                    { name: 'resumeSearch',          label: 'Resume Searches' },
+                    { name: 'companyContactDetail',  label: 'Contact Detail Views' },
+                  ].map(({ name, label }) => (
+                    <FeatureInput key={name} name={name} label={label} register={register} />
+                  ))}
+                </div>
+                <div className="mt-3">
+                  <label className="label text-xs">Job Listing Duration</label>
+                  <div className="flex gap-2">
+                    <input
+                      {...register('jobTime', { min: 1 })}
+                      type="number" min="1"
+                      className="input w-24"
+                      placeholder="30"
+                    />
+                    <select {...register('jobTimeUnit')} className="input flex-1">
+                      <option value="days">Days</option>
+                      <option value="months">Months</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Jobseeker Features */}
+            {(pkgFor === 'jobseeker' || pkgFor === 'both') && (
+              <div className="p-4 bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800/30 rounded-xl">
+                <h3 className="font-semibold text-emerald-800 dark:text-emerald-300 text-sm mb-3 flex items-center gap-2">
+                  <span className="badge badge-success text-xs">Job Seeker</span> Features
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { name: 'resume',               label: 'Resumes' },
+                    { name: 'featuredResume',        label: 'Featured Resumes' },
+                    { name: 'jobApply',              label: 'Applications' },
+                    { name: 'jobAlert',              label: 'Job Alerts' },
+                    { name: 'jobSearch',             label: 'Job Searches' },
+                    { name: 'coverletter',           label: 'Cover Letters' },
+                    { name: 'resumeContactDetail',   label: 'Contact Detail Views' },
+                  ].map(({ name, label }) => (
+                    <FeatureInput key={name} name={name} label={label} register={register} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Status (edit only) */}
+            {modal === 'edit' && (
+              <div className="flex items-center gap-3">
+                <input
+                  {...register('status')}
+                  type="checkbox"
+                  id="pkgStatus"
+                  className="w-4 h-4 rounded text-primary-600"
+                />
+                <label htmlFor="pkgStatus" className="text-sm font-medium text-gray-700 dark:text-gray-200 cursor-pointer">
+                  Package is <strong>active</strong> (visible to users)
+                </label>
+              </div>
+            )}
+
+            {/* Submit */}
+            <div className="flex gap-3 pt-2 border-t border-gray-100 dark:border-dark-700">
+              <button
+                type="button"
+                onClick={() => { setModal(null); setEditPkg(null); reset(DEFAULT_VALUES) }}
+                className="btn-secondary flex-1"
+              >
+                Cancel
+              </button>
+              <button type="submit" disabled={isPending} className="btn-primary flex-1">
+                {isPending
+                  ? 'Saving...'
+                  : modal === 'edit' ? 'Update Package' : 'Create Package'}
+              </button>
             </div>
-          )}
-
-          {/* Submit */}
-          <div className="flex gap-3 pt-2 border-t border-gray-100 dark:border-dark-700">
-            <button
-              type="button"
-              onClick={() => { setModal(null); setEditPkg(null); reset(DEFAULT_VALUES) }}
-              className="btn-secondary flex-1"
-            >
-              Cancel
-            </button>
-            <button type="submit" disabled={isPending} className="btn-primary flex-1">
-              {isPending
-                ? 'Saving...'
-                : modal === 'edit' ? 'Update Package' : 'Create Package'}
-            </button>
-          </div>
-        </form>
+          </form>
+        </div>
       </Modal>
 
       {/* ── Deactivate Confirm Modal ──────────────────────────────────── */}

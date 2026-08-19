@@ -8,7 +8,7 @@ import { formatDistanceToNow } from 'date-fns'
 import toast from 'react-hot-toast'
 import { clsx } from 'clsx'
 
-const STATUS_FILTERS = ['all', 'applied', 'reviewed', 'shortlisted', 'interview_scheduled', 'hired', 'rejected', 'withdrawn']
+const STATUS_FILTERS = ['all', 'applied', 'reviewed', 'shortlisted', 'interview_scheduled', 'interviewed', 'offered', 'hired', 'rejected', 'withdrawn']
 
 export default function JSApplications() {
   const [page, setPage] = useState(1)
@@ -109,8 +109,17 @@ export default function JSApplications() {
                     </span>
                     {app.interviewDate && (
                       <span className="text-purple-600 font-medium">
-                        📅 Interview: {new Date(app.interviewDate).toLocaleDateString()}
+                        📅 Interview: {new Date(app.interviewDate).toLocaleString('en-IN', {
+                          dateStyle: 'medium',
+                          timeStyle: 'short',
+                        })}
                       </span>
+                    )}
+                    {app.interviewLink && (
+                      <a href={app.interviewLink} target="_blank" rel="noopener noreferrer"
+                        className="text-primary-600 font-medium underline">
+                        Join Interview Link
+                      </a>
                     )}
                     {app.employerNotes && (
                       <span className="text-gray-500 italic">"{app.employerNotes}"</span>

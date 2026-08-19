@@ -1,4 +1,4 @@
-const { fileTypeFromBuffer } = require('file-type');
+const { fromBuffer: fileTypeFromBuffer } = require('file-type');
 const { AppError } = require('./AppError');
 
 const ALLOWED_IMAGE_TYPES = ['jpg', 'png', 'webp', 'gif'];

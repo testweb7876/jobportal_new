@@ -8,7 +8,7 @@ import { formatDistanceToNow } from 'date-fns'
 import toast from 'react-hot-toast'
 import { clsx } from 'clsx'
 
-const STATUS_OPTIONS = ['reviewed', 'shortlisted', 'interview_scheduled', 'offered', 'hired', 'rejected']
+const STATUS_OPTIONS = ['reviewed', 'shortlisted', 'interview_scheduled', 'interviewed', 'offered', 'hired', 'rejected']
 
 export default function EmpApplications() {
   const [searchParams] = useSearchParams()
@@ -58,6 +58,10 @@ export default function EmpApplications() {
 
   const handleStatusUpdate = () => {
     if (!newStatus) { toast.error('Please select a status'); return }
+    if (newStatus === 'interview_scheduled' && !interviewDate) {
+      toast.error('Please select an interview date & time')
+      return
+    }
     updateStatusMutation.mutate({
       id: statusModal._id,
       data: {

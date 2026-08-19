@@ -20,14 +20,14 @@ export default function AdminCompanies() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-companies', { page, filter }],
-    queryFn: () => companyAPI.getAll({
+    queryFn: () => companyAPI.getAllAdmin({
       page, limit: 20,
       ...(filter !== 'all' && { verificationStatus: filter }),
     }).then(r => r.data),
   })
 
   const verifyMutation = useMutation({
-    mutationFn: ({ id, status, note }) => companyAPI.update(id, { verificationStatus: status, isVerified: status === 'approved', verificationNote: note }),
+    mutationFn: ({ id, status, note }) => companyAPI.verify(id, { status, note }),
     onSuccess: (_, vars) => {
       toast.success(`Company ${vars.status}`)
       setVerifyModal(null)

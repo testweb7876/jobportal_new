@@ -7,24 +7,23 @@ const emailService = require('../services/email.service');
 const { ActivityLog } = require('../models/Misc.model');
 const logger = require('../config/logger');
 const passport = require('../config/passport');
+const paymentController = require('./payment.controller');
 
 // ─── REGISTER ────────────────────────────────────────────────────────────────
 exports.register = asyncHandler(async (req, res, next) => {
   const { firstName, lastName, email, password, role = 'jobseeker', phone } = req.body;
-
   const existingUser = await User.findOne({ email }).setOptions({ includeDeleted: true });
   if (existingUser) {
     return next(new AppError('An account with this email already exists.', 409));
   }
-
   const user = await User.create({
     firstName, lastName, email, password, role, phone,
     status: 'pending',
   });
-
-  // Email verification token
+  await paymentController.autoAssignFreePackage(user._id, user.role);
   const verifyToken = user.createEmailVerificationToken();
   await user.save({ validateBeforeSave: false });
+
 
   const verifyUrl = `${process.env.CLIENT_URL}/verify-email/${verifyToken}`;
 
@@ -294,6 +293,8 @@ const issueOAuthRedirect = async (req, res, user) => {
     lastActive: new Date(),
     $inc: { loginCount: 1 },
   });
+
+  await paymentController.autoAssignFreePackage(user._id, user.role);
 
   await ActivityLog.create({
     uid: user._id,

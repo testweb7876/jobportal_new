@@ -9,7 +9,7 @@ import {
   LayoutDashboard, BarChart3, Receipt, Users, Briefcase, Building2,
   CreditCard, Flag, Settings, LogOut, Menu, ChevronRight, Bell,
   ShieldCheck, Package, Activity, Landmark, Tag, TrendingUp,
-  Shield, RefreshCw, Send
+  Shield, RefreshCw, Send, Star
 } from 'lucide-react'
 
 export default function AdminLayout() {
@@ -26,6 +26,7 @@ export default function AdminLayout() {
     { icon: Briefcase,       label: 'Jobs',            href: '/admin/jobs' },
     { icon: Building2,       label: 'Companies',       href: '/admin/companies' },
     { icon: Flag,            label: 'Reports',         href: '/admin/reports' },
+    { icon: Star,            label: 'Reviews',         href: '/admin/reviews' },
     { icon: Landmark,        label: 'Bank Transfers',  href: '/admin/bank-transfers' },
     { icon: CreditCard,      label: 'Payments',        href: '/admin/payments' },
     { icon: Receipt,         label: 'Invoices',        href: '/admin/invoices' },

@@ -316,6 +316,57 @@ class EmailService {
       `,
     });
   }
+
+  async sendContactConfirmation(sender, contact) {
+    return this.send({
+      to: sender.email,
+      subject: "We've received your message - JobPortal",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2563eb;">Thanks for reaching out 👋</h2>
+          <p>Hi ${sender.firstName},</p>
+          <p>We've received your message and a real person on our team will get back to you within 24 hours on weekdays.</p>
+          <p style="color:#666; font-size:14px; border-left:3px solid #e2e8f0; padding-left:12px; margin-top:16px;">
+            ${contact.message}
+          </p>
+        </div>
+      `,
+    });
+  }
+
+  async sendContactNotificationToAdmin(adminEmail, contact) {
+    return this.send({
+      to: adminEmail,
+      subject: `New contact message: ${contact.category} — ${contact.name}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2563eb;">📬 New Contact Message</h2>
+          <p><strong>From:</strong> ${contact.name} (${contact.email})</p>
+          <p><strong>Category:</strong> ${contact.category}</p>
+          <p style="color:#333; border-left:3px solid #2563eb; padding-left:12px; margin-top:16px;">
+            ${contact.message}
+          </p>
+        </div>
+      `,
+    });
+  }
+
+  async sendContactResponse(contact, response) {
+    return this.send({
+      to: contact.email,
+      subject: 'Re: Your message to JobPortal',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2563eb;">Reply from JobPortal Support</h2>
+          <p>Hi ${contact.name},</p>
+          <p>${response}</p>
+          <p style="color:#666; font-size:13px; border-left:3px solid #e2e8f0; padding-left:12px; margin-top:20px;">
+            Your original message: "${contact.message}"
+          </p>
+        </div>
+      `,
+    });
+  }
 }
 
 module.exports = new EmailService();

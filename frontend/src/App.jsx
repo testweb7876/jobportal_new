@@ -24,6 +24,10 @@ const CompanyDetailPage = lazy(() => import('@/pages/public/CompanyDetailPage'))
 const AboutPage        = lazy(() => import('@/pages/public/AboutPage'))
 const PaymentSuccess = lazy(() => import('@/pages/payment/PaymentSuccess'))
 const PaymentCancel = lazy(() => import('@/pages/payment/PaymentCancel'))
+const ContactPage = lazy(() => import('@/pages/public/ContactPage'))
+const TermsOfServicePage = lazy(() => import('@/pages/public/TermsOfServicePage'))
+const PrivacyPolicyPage = lazy(() => import('@/pages/public/PrivacyPolicyPage'))
+const SharedResumePage = lazy(() => import('@/pages/public/SharedResumePage'))
 
 // ── Auth Pages ───────────────────────────────────────────────────────────────
 const LoginPage        = lazy(() => import('@/pages/auth/LoginPage'))
@@ -63,6 +67,7 @@ const EmpPackages      = lazy(() => import('@/pages/employer/Packages'))
 const EmpSettings      = lazy(() => import('@/pages/employer/Settings'))
 const EmpJobAnalytics  = lazy(() => import('@/pages/employer/JobAnalytics'))
 const EmpInterviews    = lazy(() => import('@/pages/employer/Interviews'))
+const EmpReviewCompany = lazy(() => import('@/pages/employer/EmpReviewCompany'))
 
 // ── Admin Pages ───────────────────────────────────────────────────────────────
 const AdminDashboard   = lazy(() => import('@/pages/admin/Dashboard'))
@@ -83,6 +88,7 @@ const AdminBroadcast   = lazy(() => import('@/pages/admin/Broadcast'))
 const AdminRefunds     = lazy(() => import('@/pages/admin/Refunds'))
 const AdminAnalytics   = lazy(() => import('@/pages/admin/Analytics'))
 const PermissionRoute = lazy(() => import('@/components/common/PermissionRoute'))
+const AdminReviews = lazy(() => import('@/pages/admin/Reviews'))
 
 
 
@@ -109,6 +115,10 @@ function App() {
           <Route path="/companies"    element={<CompaniesPage />} />
           <Route path="/companies/:id" element={<CompanyDetailPage />} />
           <Route path="/about"    element={<AboutPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsOfServicePage />} />
+          <Route path="/resumes/share/:token" element={<SharedResumePage />} /> 
         </Route>
 
         {/* ── Auth Routes ─────────────────────────────────────────────── */}
@@ -162,6 +172,7 @@ function App() {
           <Route path="settings"     element={<EmpSettings />} />
           <Route path="jobs/:id/analytics" element={<EmpJobAnalytics />} />
           <Route path="interviews"         element={<EmpInterviews />} />
+          <Route path="reviews" element={<EmpReviewCompany />} />
         </Route>
 
         {/* ── Admin Routes ────────────────────────────────────────────── */}
@@ -176,6 +187,7 @@ function App() {
           <Route path="activity-logs"  element={<AdminActivityLogs />} />
           <Route path="bank-transfers" element={<AdminBankTransfers />} />
           <Route path="invoices"       element={<Invoices />} />
+          <Route path="reviews" element={<AdminReviews />} />
 
           <Route path="revenue"    element={<PermissionRoute permission="revenue"><Revenue /></PermissionRoute>} />
           <Route path="analytics"  element={<PermissionRoute permission="analytics"><AdminAnalytics /></PermissionRoute>} />

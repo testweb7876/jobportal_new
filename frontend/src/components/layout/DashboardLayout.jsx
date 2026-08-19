@@ -7,7 +7,7 @@ import { Avatar } from '@/components/common/UI'
 import {
   LayoutDashboard, Briefcase, FileText, Bookmark, Bell, MessageSquare,
   Settings, LogOut, Menu, X, Building2, Users, Package, Sun, Moon,
-  ChevronRight, User
+  ChevronRight, User, Star 
 } from 'lucide-react'
 import { useEffect } from 'react'
 import NotificationPanel from '@/components/common/NotificationPanel'
@@ -30,6 +30,7 @@ const employerNav = [
   { icon: FileText, label: 'Applications', href: '/employer/applications' },
   { icon: Users, label: 'Candidates', href: '/employer/candidates' },
   { icon: Building2, label: 'Company', href: '/employer/company' },
+  { icon: Star, label: 'Reviews', href: '/employer/reviews' },
   { icon: MessageSquare, label: 'Messages', href: '/employer/messages' },
   { icon: Package, label: 'Packages', href: '/employer/packages' },
   { icon: Settings, label: 'Settings', href: '/employer/settings' },

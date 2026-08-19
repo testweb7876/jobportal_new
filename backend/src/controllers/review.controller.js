@@ -2,7 +2,7 @@ const Review = require('../models/Review.model');
 const Company = require('../models/Company.model');
 const { AppError, asyncHandler, sendSuccess, sendPaginated } = require('../utils/AppError');
 const notificationService = require('../services/notification.service');
-const { ActivityLog } = require('../models/Misc.model');
+const { ActivityLog, Setting } = require('../models/Misc.model');
 
 // ─── GET REVIEWS FOR A COMPANY (PUBLIC) ──────────────────────────────────────
 exports.getCompanyReviews = asyncHandler(async (req, res, next) => {
@@ -24,7 +24,7 @@ exports.getCompanyReviews = asyncHandler(async (req, res, next) => {
 
   const [reviews, total, summary] = await Promise.all([
     Review.find(filter)
-      .populate('uid', 'firstName lastName avatar')
+      .populate('uid', 'firstName lastName avatar')   
       .sort(sort).skip(skip).limit(limit).lean(),
     Review.countDocuments(filter),
     Review.aggregate([
@@ -33,15 +33,7 @@ exports.getCompanyReviews = asyncHandler(async (req, res, next) => {
     ]),
   ]);
 
-  // Hide reviewer identity if the review is anonymous
-  const sanitized = reviews.map((r) => {
-    if (r.isAnonymous) {
-      return { ...r, uid: { firstName: 'Anonymous', lastName: '', avatar: null } };
-    }
-    return r;
-  });
-
-  sendPaginated(res, sanitized, total, page, limit, 'Reviews fetched', {
+  sendPaginated(res, reviews, total, page, limit, 'Reviews fetched', {
     avgRating: summary[0]?.avgRating ? Math.round(summary[0].avgRating * 10) / 10 : 0,
     totalReviews: summary[0]?.totalReviews || 0,
   });
@@ -54,8 +46,8 @@ exports.createReview = asyncHandler(async (req, res, next) => {
   const company = await Company.findById(companyId);
   if (!company) return next(new AppError('Company not found.', 404));
 
-  const existing = await Review.findOne({ uid: req.user._id, companyId }).setOptions({ includeDeleted: true });
-  if (existing) return next(new AppError('You have already reviewed this company.', 409));
+  const setting = await Setting.findOne({ key: 'review_settings' });
+  const autoApprove = setting?.value?.autoApprove === true;
 
   const newReview = await Review.create({
     uid: req.user._id,
@@ -67,8 +59,7 @@ exports.createReview = asyncHandler(async (req, res, next) => {
     cons,
     jobTitle,
     employmentType,
-    isAnonymous: isAnonymous !== false, // default true
-    status: 'pending', // requires admin moderation before going public
+    status: autoApprove ? 'approved' : 'pending',
   });
 
   await ActivityLog.create({
@@ -79,7 +70,20 @@ exports.createReview = asyncHandler(async (req, res, next) => {
     ipAddress: req.ip,
   });
 
-  sendSuccess(res, { review: newReview }, 'Review submitted. It will be visible after moderation.', 201);
+  await notificationService.create({
+    recipientId: company.uid,
+    type: 'system',
+    title: autoApprove ? 'New Review Published ⭐' : 'New Review Received 📝',
+    message: autoApprove
+      ? `${company.name} received a new ${rating}★ review.`
+      : `A new review for ${company.name} is awaiting moderation.`,
+    refModel: 'Review',
+    refId: newReview._id,
+  });
+
+  sendSuccess(res, { review: newReview },
+    autoApprove ? 'Review submitted and published.' : 'Review submitted. It will be visible after moderation.',
+    201);
 });
 
 // ─── GET MY REVIEWS ───────────────────────────────────────────────────────────
@@ -199,7 +203,7 @@ exports.moderateReview = asyncHandler(async (req, res, next) => {
     req.params.id,
     { status, moderationNote: note },
     { new: true }
-  );
+  ).populate('companyId', 'name uid');
   if (!review) return next(new AppError('Review not found.', 404));
 
   await notificationService.create({
@@ -211,5 +215,43 @@ exports.moderateReview = asyncHandler(async (req, res, next) => {
     refId: review._id,
   });
 
+  if (status === 'approved') {
+    await notificationService.create({
+      recipientId: review.companyId.uid,
+      type: 'system',
+      title: 'New Review Published ⭐',
+      message: `${review.companyId.name} received a new ${review.rating}★ review.`,
+      refModel: 'Review',
+      refId: review._id,
+    });
+  }
+
   sendSuccess(res, { review }, `Review ${status}`);
+});
+
+// ─── ADMIN: GET ALL REVIEWS (any status, filterable by company) ──────────────
+exports.getAllReviewsAdmin = asyncHandler(async (req, res) => {
+  const page  = parseInt(req.query.page)  || 1;
+  const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+  const filter = {};
+
+  if (req.query.status && req.query.status !== 'all') filter.status = req.query.status;
+  if (req.query.companyId) filter.companyId = req.query.companyId;
+  if (req.query.search) {
+    filter.$or = [
+      { title:  new RegExp(req.query.search, 'i') },
+      { review: new RegExp(req.query.search, 'i') },
+    ];
+  }
+
+  const [reviews, total] = await Promise.all([
+    Review.find(filter)
+      .populate('uid', 'firstName lastName email')
+      .populate('companyId', 'name slug logo')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit).limit(limit).lean(),
+    Review.countDocuments(filter),
+  ]);
+
+  sendPaginated(res, reviews, total, page, limit);
 });

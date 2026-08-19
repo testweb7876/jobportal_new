@@ -4,11 +4,25 @@ const User = require('../models/User.model');
 const Application = require('../models/Application.model');
 const slugify = require('slugify');
 const { UserPackage } = require('../models/Payment.model');
-const { ActivityLog, JobShortlist } = require('../models/Misc.model');
+const { ActivityLog, JobShortlist, Setting } = require('../models/Misc.model');
 const { AppError, asyncHandler, sendSuccess, sendPaginated } = require('../utils/AppError');
 const { cache } = require('../config/redis');
 const notificationService = require('../services/notification.service');
 const emailService = require('../services/email.service');
+
+const AUTO_APPROVE_CACHE_KEY = 'setting:job_auto_approve';
+const AUTO_APPROVE_SETTING_KEY = 'job_auto_approve';
+
+// ─── HELPER: get current auto-approve setting (cached) ───────────────────────
+const getAutoApproveFlag = async () => {
+  const cached = await cache.get(AUTO_APPROVE_CACHE_KEY);
+  if (cached !== null && cached !== undefined) return cached === true;
+
+  const setting = await Setting.findOne({ key: AUTO_APPROVE_SETTING_KEY });
+  const value = setting?.value === true;
+  await cache.set(AUTO_APPROVE_CACHE_KEY, value, 3600);
+  return value;
+};
 
 // ─── BUILD QUERY HELPER ──────────────────────────────────────────────────────
 const buildJobQuery = (query) => {
@@ -167,12 +181,16 @@ exports.createJob = asyncHandler(async (req, res, next) => {
   const Company = require('../models/Company.model');
   const company = await Company.findOne({ uid: req.user._id });
 
+  // Admins always auto-approve. Otherwise, respect the site-wide auto-approve toggle.
+  const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
+  const autoApprove = isAdmin || await getAutoApproveFlag();
+
   const jobData = {
     ...req.body,
     uid: req.user._id,
     companyId: company?._id || req.body.companyId,
     company:   company?.name || req.body.company,
-    status: req.user.role === 'admin' ? 'approved' : 'pending',
+    status: autoApprove ? 'approved' : 'pending',
     expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     userpackageId: pkg._id,
   };
@@ -197,31 +215,60 @@ exports.createJob = asyncHandler(async (req, res, next) => {
 
   await cache.delPattern('jobs:list:*');
 
-  sendSuccess(res, { job }, 'Job created successfully. Pending review.', 201);
+  sendSuccess(
+    res,
+    { job },
+    autoApprove ? 'Job created and published successfully.' : 'Job created successfully. Pending review.',
+    201
+  );
 });
 
 // ─── UPDATE JOB ───────────────────────────────────────────────────────────────
 exports.updateJob = asyncHandler(async (req, res, next) => {
   const job = await Job.findById(req.params.id);
-
   if (!job) return next(new AppError('Job not found.', 404));
 
-  if (job.uid.toString() !== req.user._id.toString() && !['admin', 'superadmin'].includes(req.user.role)) {
+  if (
+    job.uid.toString() !== req.user._id.toString() &&
+    !['admin', 'superadmin'].includes(req.user.role)
+  ) {
     return next(new AppError('You are not authorized to update this job.', 403));
   }
+  const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
+  if (!isAdmin) {
+    if (
+      req.body.status === 'pending' &&
+      (job.status === 'draft' || job.status === 'pending')
+    ) {
+      const autoApprove = await getAutoApproveFlag();
 
-  if (!['admin', 'superadmin'].includes(req.user.role)) {
-    if (req.body.status && req.body.status !== 'pending' && req.body.status !== 'draft') {
+      if (autoApprove) {
+        req.body.status = 'approved';
+      }
+    }
+
+    if (
+      req.body.status &&
+      !['approved', 'pending', 'draft'].includes(req.body.status)
+    ) {
       delete req.body.status;
     }
   }
-
-  const updatedJob = await Job.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-
+  const updatedJob = await Job.findByIdAndUpdate(
+    req.params.id,
+    req.body,
+    {
+      new: true,
+      runValidators: true
+    }
+  );
   await cache.delPattern('jobs:list:*');
   await cache.del(`job:${job.slug}`);
-
-  sendSuccess(res, { job: updatedJob }, 'Job updated');
+  const message =
+    updatedJob.status === 'approved'
+      ? 'Job updated and published successfully.'
+      : 'Job updated successfully. Pending review.';
+  sendSuccess(res, { job: updatedJob }, message);
 });
 
 // ─── DELETE JOB (SOFT) ────────────────────────────────────────────────────────
@@ -384,3 +431,28 @@ exports.getPublicStats = asyncHandler(async (req, res) => {
     }
   })
 })
+
+// ─── ADMIN: GET AUTO-APPROVE SETTING ─────────────────────────────────────────
+exports.getAutoApproveSetting = asyncHandler(async (req, res) => {
+  const autoApprove = await getAutoApproveFlag();
+  sendSuccess(res, { autoApprove }, 'Setting fetched');
+});
+
+// ─── ADMIN: UPDATE AUTO-APPROVE SETTING ──────────────────────────────────────
+exports.updateAutoApproveSetting = asyncHandler(async (req, res, next) => {
+  const { autoApprove } = req.body;
+
+  if (typeof autoApprove !== 'boolean') {
+    return next(new AppError('autoApprove must be true or false.', 400));
+  }
+
+  await Setting.findOneAndUpdate(
+    { key: AUTO_APPROVE_SETTING_KEY },
+    { key: AUTO_APPROVE_SETTING_KEY, value: autoApprove },
+    { upsert: true, new: true }
+  );
+
+  await cache.del(AUTO_APPROVE_CACHE_KEY);
+
+  sendSuccess(res, { autoApprove }, `Auto-approve jobs ${autoApprove ? 'enabled' : 'disabled'}.`);
+});

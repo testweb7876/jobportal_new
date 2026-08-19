@@ -103,6 +103,27 @@ export const authAPI = {
   changePassword: (data) => api.patch('/auth/change-password', data),
 }
 
+export const reviewAPI = {
+  getForCompany: (companyId, params) => api.get(`/reviews/company/${companyId}`, { params }),
+  create: (data) => api.post('/reviews', data),
+  getMy: () => api.get('/reviews/my'),
+  update: (id, data) => api.patch(`/reviews/${id}`, data),
+  delete: (id) => api.delete(`/reviews/${id}`),
+  toggleHelpful: (id) => api.post(`/reviews/${id}/helpful`),
+  respond: (id, data) => api.post(`/reviews/${id}/respond`, data),
+  // admin
+  getPending: (params) => api.get('/reviews/admin/pending', { params }),
+  getAllAdmin: (params) => api.get('/reviews/admin/all', { params }),
+  moderate: (id, data) => api.patch(`/reviews/admin/${id}/moderate`, data),
+}
+
+export const twoFactorAPI = {
+  setup: () => api.post('/2fa/setup'),
+  verifyEnable: (data) => api.post('/2fa/verify-enable', data),
+  verifyLogin: (data) => api.post('/2fa/verify-login', data),
+  disable: (data) => api.post('/2fa/disable', data),
+}
+
 export const jobsAPI = {
   getAll: (params) => api.get('/jobs', { params }),
   getOne: (id) => api.get(`/jobs/${id}`),
@@ -116,6 +137,8 @@ export const jobsAPI = {
   moderate: (id, data) => api.patch(`/jobs/${id}/moderate`, data),
   analytics: (id) => api.get(`/jobs/${id}/analytics`),
   getPublicStats: () => api.get('/jobs/stats'),
+  getAutoApproveSetting: () => api.get('/jobs/settings/auto-approve'),
+  updateAutoApproveSetting: (data) => api.patch('/jobs/settings/auto-approve', data),
 }
 
 export const applicationAPI = {
@@ -138,6 +161,8 @@ export const companyAPI = {
   uploadLogo: (formData) => api.post('/companies/logo', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   follow: (id) => api.post(`/companies/${id}/follow`),
   submitVerification: (formData) => api.post('/companies/verify/submit', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  getAllAdmin: (params) => api.get('/companies/admin/all', { params }),
+  verify: (id, data) => api.patch(`/companies/${id}/verify`, data),
 }
 
 export const resumeAPI = {
@@ -156,6 +181,7 @@ export const resumeAPI = {
   setVisibility:    (id, data)     => api.patch(`/resumes/${id}/visibility`, data),
   generateShareLink:(id)           => api.post(`/resumes/${id}/share`),
   toggleFeatured:   (id)           => api.patch(`/resumes/${id}/feature`),
+  getShared:        (token)        => api.get(`/resumes/share/${token}`),
 }
 
 export const packageAPI = {
@@ -167,6 +193,8 @@ export const packageAPI = {
 export const settingsAPI = {
   getBankDetails:    () => api.get('/admin/settings/bank/public'),  
   updateBankDetails: (data) => api.patch('/admin/settings/bank', data),  
+  getReviewSettings:    () => api.get('/admin/settings/reviews'),
+  updateReviewSettings: (data) => api.patch('/admin/settings/reviews', data),
 }
 
 export const paymentAPI = {
@@ -268,9 +296,21 @@ export const categoriesAPI = {
   getCategories: () => api.get('/categories/categories'),
   getJobTypes: () => api.get('/categories/job-types'),
   getCareerLevels: () => api.get('/categories/career-levels'),
+  getCurrencies: () => api.get('/categories/currencies'),   
   getCountries: () => api.get('/categories/countries'),
   getStates: (id) => api.get(`/categories/states/${id}`),
   getCities: (id) => api.get(`/categories/cities/${id}`),
+  deleteJobType: (id) => api.delete(`/categories/job-types/${id}`),
+  getEducation: () => api.get('/categories/education'),
+  createCareerLevel: (data) => api.post('/categories/career-levels', data),
+  updateCareerLevel: (id, data) => api.patch(`/categories/career-levels/${id}`, data),
+  deleteCareerLevel: (id) => api.delete(`/categories/career-levels/${id}`),
+  createEducation: (data) => api.post('/categories/education', data),
+  updateEducation: (id, data) => api.patch(`/categories/education/${id}`, data),
+  deleteEducation: (id) => api.delete(`/categories/education/${id}`),
+  createCurrency: (data) => api.post('/categories/currencies', data),
+  updateCurrency: (id, data) => api.patch(`/categories/currencies/${id}`, data),
+  deleteCurrency: (id) => api.delete(`/categories/currencies/${id}`),
 }
 
 export const uploadAPI = {

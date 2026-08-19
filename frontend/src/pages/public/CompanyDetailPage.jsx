@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
+import DOMPurify from 'dompurify'
 import {
   Building2, MapPin, Globe, Users, CheckCircle, Briefcase,
   Heart, Linkedin, Twitter, Youtube, Facebook, Instagram,
@@ -10,6 +11,7 @@ import { companyAPI } from '@/services/api'
 import { EmptyState } from '@/components/common/UI'
 import useAuthStore from '@/store/authStore'
 import toast from 'react-hot-toast'
+import ReviewsSection from '@/components/company/ReviewsSection'
 
 /* ── social link config ────────────────────────────────────── */
 const SOCIAL_ICONS = {
@@ -198,9 +200,12 @@ export default function CompanyDetailPage() {
             {company.description && (
               <div className="card p-6">
                 <h2 className="text-lg font-display font-bold text-gray-900 dark:text-white mb-3">About</h2>
-                <p className="text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-line">
-                  {company.description}
-                </p>
+                <div
+                  className="text-gray-600 dark:text-gray-300 leading-relaxed prose prose-sm dark:prose-invert max-w-none"
+                  dangerouslySetInnerHTML={{
+                    __html: DOMPurify.sanitize(company.description),
+                  }}
+                />
               </div>
             )}
 
@@ -241,6 +246,7 @@ export default function CompanyDetailPage() {
                 </div>
               </div>
             )}
+            <ReviewsSection companyId={company._id} />
           </div>
 
           {/* Right col */}

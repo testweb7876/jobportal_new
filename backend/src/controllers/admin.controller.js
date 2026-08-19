@@ -882,10 +882,9 @@ exports.clearCache = asyncHandler(async (req, res) => {
   if (pattern) {
     await cache.delPattern(pattern);
   } else {
-    // Clear all known cache keys
     await Promise.all([
       cache.del('admin:dashboard'),
-      cache.del('packages:all'),
+      cache.delPattern('packages:*'),
       cache.del('categories'),
       cache.del('jobtypes'),
       cache.del('careerlevels'),
@@ -963,4 +962,30 @@ exports.getPackagesList = asyncHandler(async (req, res) => {
     .lean();
 
   sendSuccess(res, { packages }, 'Packages fetched');
+});
+
+// ─── REVIEW MODERATION SETTINGS (admin, not superadmin-only) ─────────────────
+exports.getReviewSettings = asyncHandler(async (req, res) => {
+  const setting = await Setting.findOne({ key: 'review_settings' });
+  sendSuccess(res, { reviewSettings: setting?.value || { autoApprove: false } }, 'Review settings fetched');
+});
+
+exports.updateReviewSettings = asyncHandler(async (req, res) => {
+  const { autoApprove } = req.body;
+
+  const setting = await Setting.findOneAndUpdate(
+    { key: 'review_settings' },
+    { value: { autoApprove: !!autoApprove } },
+    { upsert: true, new: true }
+  );
+
+  await ActivityLog.create({
+    uid: req.user._id,
+    performedBy: req.user._id,
+    description: `${req.user.role} set review auto-approve to ${!!autoApprove}`,
+    action: 'review_settings_update',
+    ipAddress: req.ip,
+  });
+
+  sendSuccess(res, { reviewSettings: setting.value }, 'Review settings updated');
 });

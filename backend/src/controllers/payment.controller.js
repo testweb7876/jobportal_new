@@ -400,3 +400,38 @@ exports.updateBankTransferStatus = asyncHandler(async (req, res, next) => {
 
   sendSuccess(res, {}, `Status updated to ${status}`)
 })
+
+exports.autoAssignFreePackage = async (userId, packageFor) => {
+  try {
+   
+    const existing = await UserPackage.findOne({
+      uid: userId, isActive: true, endDate: { $gt: new Date() },
+    });
+    if (existing) return null;
+
+   
+    const pkg = await Package.findOne({
+      isFree: true,
+      status: true,
+      packageFor: { $in: [packageFor, 'both'] },
+    }).sort({ packageFor: -1 }); 
+
+    if (!pkg) return null; 
+
+    const invoice = await Invoice.create({
+      uid: userId,
+      recordId: pkg._id,
+      description: `Free Package (auto-assigned): ${pkg.title}`,
+      type: 'package',
+      amount: 0,
+      payMethod: 'free',
+      paymentStatus: 'paid',
+      paidAt: new Date(),
+    });
+
+    return await activateUserPackage(userId, pkg._id, invoice._id);
+  } catch (err) {
+    logger.error('Auto free package assignment failed:', err);
+    return null; 
+  }
+};

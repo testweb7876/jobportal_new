@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { formatDistanceToNow } from 'date-fns'
 import { clsx } from 'clsx'
+import TwoFactorSection from './TwoFactorSection'
 
 const PASSWORD_PATTERN = {
   value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])/,
@@ -201,6 +202,7 @@ export default function AccountSecuritySection() {
           </div>
         )}
       </div>
+      <TwoFactorSection />
 
       <Modal open={logoutAllModal} onClose={() => setLogoutAllModal(false)} title="Logout from all devices">
         <div className="space-y-4">

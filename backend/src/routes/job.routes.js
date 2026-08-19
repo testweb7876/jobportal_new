@@ -8,6 +8,8 @@ router.get('/featured',                                  jobController.getFeatur
 router.get('/stats',                                     jobController.getPublicStats);
 router.get('/my-jobs',            protect, employerOnly, jobController.getMyJobs);
 router.get('/shortlisted',        protect,               jobController.getShortlistedJobs);
+router.get('/settings/auto-approve',   protect, adminOnly, jobController.getAutoApproveSetting);
+router.patch('/settings/auto-approve', protect, adminOnly, jobController.updateAutoApproveSetting);
 router.get('/:id',                optionalAuth,          jobController.getJob);
 router.get('/:id/analytics',      protect, employerOnly, jobController.getJobAnalytics);
 router.post('/',                  protect, employerOnly, jobController.createJob);

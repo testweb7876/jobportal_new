@@ -190,10 +190,11 @@ export default function ResumeDetails() {
                 <FileText size={13} className="text-primary-600 flex-shrink-0" />
                 <a
                   href={file.secureUrl}
+                  download={file.filename || file.originalName || 'resume'}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 truncate text-xs text-primary-600 hover:underline">
-                  {file.originalName || 'Resume file'}
+                  {file.filename || file.originalName || 'Resume file'}
                 </a>
                 <button
                   onClick={() => deleteFileMutation.mutate(file.publicId)}

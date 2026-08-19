@@ -9,6 +9,7 @@ import { formatDistanceToNow, format } from 'date-fns'
 import useAuthStore from '@/store/authStore'
 import toast from 'react-hot-toast'
 import { clsx } from 'clsx'
+import DOMPurify from 'dompurify'
 
 export default function JobDetailPage() {
   const { id } = useParams()
@@ -57,7 +58,7 @@ export default function JobDetailPage() {
 
   if (isLoading) return <JobDetailSkeleton />
   if (!job) return (
-    <div className="min-h-screen flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center px-4">
       <div className="text-center">
         <AlertCircle size={48} className="text-gray-300 mx-auto mb-4" />
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">Job not found</h2>
@@ -70,39 +71,41 @@ export default function JobDetailPage() {
   const isOwner = user?._id === job.uid
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-dark-950 py-8">
-      <div className="container-custom">
+    <div className="min-h-screen bg-gray-50 dark:bg-dark-950 py-4 sm:py-8">
+      <div className="container-custom px-4 sm:px-6">
         <button onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 dark:hover:text-white mb-6 transition-colors">
+          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 dark:hover:text-white mb-4 sm:mb-6 transition-colors">
           <ArrowLeft size={16} /> Back to Jobs
         </button>
 
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
           {/* ── Main Content ───────────────────────────────────────────── */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Job Header Card */}
-            <div className="card p-6">
-              <div className="flex items-start gap-4 mb-5">
-                <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-dark-700 flex items-center justify-center flex-shrink-0 overflow-hidden border border-gray-200 dark:border-dark-600">
-                  {job.companyId?.logo?.secureUrl
-                    ? <img src={job.companyId.logo.secureUrl} alt="" className="w-full h-full object-cover" />
-                    : <Building2 size={26} className="text-gray-400" />}
+            <div className="card p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-start gap-4 mb-5">
+                <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gray-100 dark:bg-dark-700 flex items-center justify-center flex-shrink-0 overflow-hidden border border-gray-200 dark:border-dark-600">
+                    {job.companyId?.logo?.secureUrl
+                      ? <img src={job.companyId.logo.secureUrl} alt="" className="w-full h-full object-cover" />
+                      : <Building2 size={22} className="text-gray-400" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h1 className="text-lg sm:text-2xl font-display font-bold text-gray-900 dark:text-white mb-1 break-words">{job.title}</h1>
+                    <Link to={`/companies/${job.companyId?.slug || job.companyId?._id}`}
+                      className="text-primary-600 hover:underline font-medium text-sm sm:text-base inline-flex items-center flex-wrap">
+                      {job.companyId?.name || job.company}
+                      {job.companyId?.isVerified && <CheckCircle size={14} className="ml-1 text-primary-500 flex-shrink-0" />}
+                    </Link>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h1 className="text-2xl font-display font-bold text-gray-900 dark:text-white mb-1">{job.title}</h1>
-                  <Link to={`/companies/${job.companyId?.slug || job.companyId?._id}`}
-                    className="text-primary-600 hover:underline font-medium">
-                    {job.companyId?.name || job.company}
-                    {job.companyId?.isVerified && <CheckCircle size={14} className="inline ml-1 text-primary-500" />}
-                  </Link>
-                </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 self-start sm:self-auto flex-shrink-0">
                   <button onClick={() => shortlistMutation.mutate()}
-                    className="w-10 h-12 rounded-xl border border-gray-200 dark:border-dark-600 flex items-center justify-center hover:border-primary-400 hover:text-primary-600 transition-colors">
+                    className="w-10 h-10 sm:h-12 rounded-xl border border-gray-200 dark:border-dark-600 flex items-center justify-center hover:border-primary-400 hover:text-primary-600 transition-colors flex-shrink-0">
                     {shortlisted ? <BookmarkCheck size={18} className="text-primary-600" /> : <Bookmark size={18} />}
                   </button>
                   <button onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success('Link copied!') }}
-                    className="w-10 h-12 rounded-xl border border-gray-200 dark:border-dark-600 flex items-center justify-center hover:border-primary-400 hover:text-primary-600 transition-colors">
+                    className="w-10 h-10 sm:h-12 rounded-xl border border-gray-200 dark:border-dark-600 flex items-center justify-center hover:border-primary-400 hover:text-primary-600 transition-colors flex-shrink-0">
                     <Share2 size={18} />
                   </button>
                 </div>
@@ -119,7 +122,7 @@ export default function JobDetailPage() {
               </div>
 
               {/* Info Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gray-50 dark:bg-dark-800 rounded-xl">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-50 dark:bg-dark-800 rounded-xl">
                 {[
                   {
                     icon: Wallet,
@@ -136,35 +139,35 @@ export default function JobDetailPage() {
                   { icon: Users, label: 'Openings', value: `${job.noOfJobs || 1} position${job.noOfJobs > 1 ? 's' : ''}` },
                   { icon: Clock, label: 'Posted', value: formatDistanceToNow(new Date(job.createdAt), { addSuffix: true }) },
                 ].map(({ icon: Icon, label, value }) => (
-                  <div key={label} className="text-center">
+                  <div key={label} className="text-center min-w-0">
                     <Icon size={16} className="text-gray-400 mx-auto mb-1" />
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white mt-0.5">{value}</p>
+                    <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">{label}</p>
+                    <p className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white mt-0.5 break-words">{value}</p>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Description */}
-            <div className="card p-6">
-              <h2 className="text-lg font-display font-bold text-gray-900 dark:text-white mb-4">Job Description</h2>
-              <div className="prose prose-sm dark:prose-invert max-w-none text-gray-600 dark:text-gray-300 leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: job.description }} />
+            <div className="card p-4 sm:p-6">
+              <h2 className="text-base sm:text-lg font-display font-bold text-gray-900 dark:text-white mb-3 sm:mb-4">Job Description</h2>
+              <div className="prose prose-sm dark:prose-invert max-w-none text-gray-600 dark:text-gray-300 leading-relaxed break-words"
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(job.description) }} />
             </div>
 
             {/* Qualifications */}
             {job.qualifications && (
-              <div className="card p-6">
-                <h2 className="text-lg font-display font-bold text-gray-900 dark:text-white mb-4">Qualifications</h2>
-                <div className="prose prose-sm dark:prose-invert max-w-none text-gray-600 dark:text-gray-300"
-                  dangerouslySetInnerHTML={{ __html: job.qualifications }} />
+              <div className="card p-4 sm:p-6">
+                <h2 className="text-base sm:text-lg font-display font-bold text-gray-900 dark:text-white mb-3 sm:mb-4">Qualifications</h2>
+                <div className="prose prose-sm dark:prose-invert max-w-none text-gray-600 dark:text-gray-300 break-words"
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(job.qualifications) }} />
               </div>
             )}
 
             {/* Skills */}
             {job.prefferdSkills && (
-              <div className="card p-6">
-                <h2 className="text-lg font-display font-bold text-gray-900 dark:text-white mb-4">Preferred Skills</h2>
+              <div className="card p-4 sm:p-6">
+                <h2 className="text-base sm:text-lg font-display font-bold text-gray-900 dark:text-white mb-3 sm:mb-4">Preferred Skills</h2>
                 <div className="flex flex-wrap gap-2">
                   {job.prefferdSkills.split(',').map((skill, i) => (
                     <span key={i} className="badge badge-primary">{skill.trim()}</span>
@@ -175,8 +178,8 @@ export default function JobDetailPage() {
 
             {/* Tags */}
             {job.tags?.length > 0 && (
-              <div className="card p-6">
-                <h2 className="text-lg font-display font-bold text-gray-900 dark:text-white mb-4">Tags</h2>
+              <div className="card p-4 sm:p-6">
+                <h2 className="text-base sm:text-lg font-display font-bold text-gray-900 dark:text-white mb-3 sm:mb-4">Tags</h2>
                 <div className="flex flex-wrap gap-2">
                   {job.tags.map((tag, i) => (
                     <span key={i} className="badge badge-gray">#{tag}</span>
@@ -187,13 +190,13 @@ export default function JobDetailPage() {
 
             {/* Similar Jobs */}
             {similarJobs.length > 0 && (
-              <div className="card p-6">
-                <h2 className="text-lg font-display font-bold text-gray-900 dark:text-white mb-4">Similar Jobs</h2>
+              <div className="card p-4 sm:p-6">
+                <h2 className="text-base sm:text-lg font-display font-bold text-gray-900 dark:text-white mb-3 sm:mb-4">Similar Jobs</h2>
                 <div className="space-y-3">
                   {similarJobs.map(sj => (
                     <Link key={sj._id} to={`/jobs/${sj.slug || sj._id}`}
                       className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-dark-700 transition-colors group">
-                      <div className="w-10 h-12 rounded-xl bg-gray-100 dark:bg-dark-700 flex items-center justify-center overflow-hidden border border-gray-200 dark:border-dark-600 flex-shrink-0">
+                      <div className="w-10 h-10 sm:h-12 rounded-xl bg-gray-100 dark:bg-dark-700 flex items-center justify-center overflow-hidden border border-gray-200 dark:border-dark-600 flex-shrink-0">
                         {sj.companyId?.logo?.secureUrl
                           ? <img src={sj.companyId.logo.secureUrl} alt="" className="w-full h-full object-cover" />
                           : <Building2 size={16} className="text-gray-400" />}
@@ -202,7 +205,7 @@ export default function JobDetailPage() {
                         <p className="text-sm font-semibold text-gray-900 dark:text-white group-hover:text-primary-600 transition-colors truncate">{sj.title}</p>
                         <p className="text-xs text-gray-500 truncate">{sj.companyId?.name}</p>
                       </div>
-                      <span className="badge badge-gray capitalize">{sj.workplaceType}</span>
+                      <span className="badge badge-gray capitalize hidden sm:inline-flex flex-shrink-0">{sj.workplaceType}</span>
                     </Link>
                   ))}
                 </div>
@@ -211,9 +214,9 @@ export default function JobDetailPage() {
           </div>
 
           {/* ── Sidebar ────────────────────────────────────────────────── */}
-          <div className="space-y-5">
+          <div className="space-y-4 sm:space-y-5">
             {/* Apply Card */}
-            <div className="card p-6 sticky top-24">
+            <div className="card p-4 sm:p-6 lg:sticky lg:top-24">
               {isExpired ? (
                 <div className="text-center py-4">
                   <AlertCircle size={32} className="text-red-400 mx-auto mb-2" />
@@ -270,22 +273,29 @@ export default function JobDetailPage() {
 
             {/* Company Info */}
             {job.companyId && (
-              <div className="card p-6">
+              <div className="card p-4 sm:p-6">
                 <h3 className="font-display font-bold text-gray-900 dark:text-white mb-4">About Company</h3>
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 dark:bg-dark-700 border border-gray-200 dark:border-dark-600">
+                  <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 dark:bg-dark-700 border border-gray-200 dark:border-dark-600 flex-shrink-0">
                     {job.companyId.logo?.secureUrl
                       ? <img src={job.companyId.logo.secureUrl} alt="" className="w-full h-full object-cover" />
                       : <Building2 size={20} className="text-gray-400 mx-auto mt-3" />}
                   </div>
-                  <div>
-                    <p className="font-semibold text-gray-900 dark:text-white">{job.companyId.name}</p>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900 dark:text-white truncate">{job.companyId.name}</p>
                     {job.companyId.city && <p className="text-xs text-gray-500">{job.companyId.city}</p>}
                   </div>
                 </div>
+
                 {job.companyId.description && (
-                  <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-3 mb-3">{job.companyId.description}</p>
+                  <div
+                    className="text-sm text-gray-500 dark:text-gray-400 line-clamp-3 mb-3 prose prose-sm dark:prose-invert max-w-none [&_*]:inline"
+                    dangerouslySetInnerHTML={{
+                      __html: DOMPurify.sanitize(job.companyId.description),
+                    }}
+                  />
                 )}
+
                 <Link to={`/companies/${job.companyId.slug || job.companyId._id}`}
                   className="btn-outline w-full justify-center text-sm">
                   View Company Profile
@@ -300,8 +310,8 @@ export default function JobDetailPage() {
       <Modal open={applyModal} onClose={() => setApplyModal(false)} title="Apply for this Job">
         <div className="space-y-4">
           <div className="p-4 bg-gray-50 dark:bg-dark-800 rounded-xl">
-            <p className="font-semibold text-gray-900 dark:text-white">{job.title}</p>
-            <p className="text-sm text-gray-500">{job.companyId?.name || job.company}</p>
+            <p className="font-semibold text-gray-900 dark:text-white break-words">{job.title}</p>
+            <p className="text-sm text-gray-500 break-words">{job.companyId?.name || job.company}</p>
           </div>
           <div>
             <label className="label">Cover Message (Optional)</label>
@@ -309,12 +319,12 @@ export default function JobDetailPage() {
               rows={5} placeholder="Tell the employer why you're a great fit for this role..."
               className="input resize-none" />
           </div>
-          <div className="flex gap-3 pt-2">
-            <button onClick={() => setApplyModal(false)} className="btn-secondary flex-1">Cancel</button>
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <button onClick={() => setApplyModal(false)} className="btn-secondary flex-1 order-2 sm:order-1">Cancel</button>
             <button
               onClick={() => applyMutation.mutate({ jobId: job._id, applyMessage })}
               disabled={applyMutation.isPending}
-              className="btn-primary flex-1">
+              className="btn-primary flex-1 order-1 sm:order-2">
               {applyMutation.isPending ? 'Submitting...' : 'Submit Application'}
             </button>
           </div>
@@ -326,16 +336,16 @@ export default function JobDetailPage() {
 
 function JobDetailSkeleton() {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-dark-950 py-8">
-      <div className="container-custom grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-dark-950 py-4 sm:py-8">
+      <div className="container-custom px-4 sm:px-6 grid lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
           {[200, 300, 200].map((h, i) => (
-            <div key={i} className="card p-6">
+            <div key={i} className="card p-4 sm:p-6">
               <Skeleton className={`h-${h === 200 ? '32' : '48'} w-full`} />
             </div>
           ))}
         </div>
-        <div className="card p-6 h-64" />
+        <div className="card p-4 sm:p-6 h-64" />
       </div>
     </div>
   )

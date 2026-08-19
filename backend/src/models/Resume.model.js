@@ -85,6 +85,7 @@ const resumeSchema = new mongoose.Schema({
     filename:  String,
     filetype:  String,
     filesize:  Number,
+    resourceType: String,
     uploadedAt: { type: Date, default: Date.now },
   }],
 

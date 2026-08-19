@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, CheckCircle, XCircle, Eye } from 'lucide-react'
+import { Search, CheckCircle, XCircle, Eye, Zap } from 'lucide-react'
 import { adminAPI, jobsAPI } from '@/services/api'
 import { StatusBadge, EmptyState, Pagination, Modal, Table } from '@/components/common/UI'
 import { formatDistanceToNow } from 'date-fns'
@@ -26,6 +26,21 @@ export default function AdminJobs() {
     }).then(r => r.data),
   })
 
+  // ── Auto-approve setting ─────────────────────────────────────────────────
+  const { data: autoApproveData, isLoading: autoApproveLoading } = useQuery({
+    queryKey: ['job-auto-approve-setting'],
+    queryFn: () => jobsAPI.getAutoApproveSetting().then(r => r.data?.autoApprove ?? false),
+  })
+
+  const autoApproveMutation = useMutation({
+    mutationFn: (autoApprove) => jobsAPI.updateAutoApproveSetting({ autoApprove }),
+    onSuccess: (_, autoApprove) => {
+      toast.success(autoApprove ? 'Auto-approve enabled — new jobs go live instantly.' : 'Auto-approve disabled — new jobs need review.')
+      qc.setQueryData(['job-auto-approve-setting'], autoApprove)
+    },
+    onError: () => toast.error('Failed to update auto-approve setting'),
+  })
+
   const moderateMutation = useMutation({
     mutationFn: ({ id, status, note }) => jobsAPI.moderate(id, { status, note }),
     onSuccess: (_, vars) => {
@@ -43,9 +58,45 @@ export default function AdminJobs() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="page-title mb-1">Job Moderation</h1>
-        <p className="text-gray-500 dark:text-gray-400">{pagination.total || 0} jobs</p>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="page-title mb-1">Job Moderation</h1>
+          <p className="text-gray-500 dark:text-gray-400">{pagination.total || 0} jobs</p>
+        </div>
+
+        {/* Auto-approve toggle */}
+        <label className={clsx(
+          'flex items-center gap-3 px-4 py-2.5 rounded-xl border cursor-pointer transition-colors',
+          autoApproveData
+            ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-700'
+            : 'bg-gray-50 dark:bg-dark-800 border-gray-200 dark:border-dark-600'
+        )}>
+          <Zap size={16} className={autoApproveData ? 'text-emerald-600' : 'text-gray-400'} />
+          <div>
+            <p className="text-sm font-semibold text-gray-900 dark:text-white leading-tight">
+              Auto-approve new jobs
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 leading-tight">
+              {autoApproveData ? 'New jobs go live instantly' : 'New jobs wait for review'}
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={!!autoApproveData}
+            disabled={autoApproveLoading || autoApproveMutation.isPending}
+            onClick={() => autoApproveMutation.mutate(!autoApproveData)}
+            className={clsx(
+              'relative w-11 h-6 rounded-full transition-colors flex-shrink-0 disabled:opacity-50',
+              autoApproveData ? 'bg-emerald-600' : 'bg-gray-300 dark:bg-dark-600'
+            )}
+          >
+            <span className={clsx(
+              'absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform',
+              autoApproveData && 'translate-x-5'
+            )} />
+          </button>
+        </label>
       </div>
 
       <div className="flex gap-2 overflow-x-auto">
