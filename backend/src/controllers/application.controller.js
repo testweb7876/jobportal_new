@@ -267,7 +267,8 @@ exports.updateApplicationStatus = asyncHandler(async (req, res, next) => {
 
 // ─── WITHDRAW APPLICATION (JOBSEEKER) ────────────────────────────────────────
 exports.withdrawApplication = asyncHandler(async (req, res, next) => {
-  const application = await Application.findOne({ _id: req.params.id, uid: req.user._id });
+  const application = await Application.findOne({ _id: req.params.id, uid: req.user._id })
+    .populate('jobId', 'title uid company');
   if (!application) return next(new AppError('Application not found.', 404));
 
   if (['hired', 'rejected'].includes(application.status)) {
@@ -279,6 +280,24 @@ exports.withdrawApplication = asyncHandler(async (req, res, next) => {
     withdrawReason: req.body.reason,
     $push: { statusHistory: { status: 'withdrawn', note: req.body.reason, changedBy: req.user._id } },
   });
+
+  try {
+    await emailService.sendApplicationWithdrawnConfirmation(req.user, application.jobId);
+  } catch { /* silent */ }
+
+  // notify employer
+  if (application.jobId?.uid) {
+    const Job = require('../models/Job.model');
+    const job = await Job.findById(application.jobId._id).populate('uid', 'email firstName');
+    await notificationService.create({
+      recipientId: job.uid._id,
+      type: 'application_withdrawn',
+      title: 'Candidate Withdrew Application',
+      message: `A candidate withdrew their application for "${job.title}".`,
+      refModel: 'Application', refId: application._id,
+    });
+    try { await emailService.sendCandidateWithdrewApplication(job.uid, job, `${req.user.firstName} ${req.user.lastName}`); } catch {}
+  }
 
   sendSuccess(res, {}, 'Application withdrawn');
 });

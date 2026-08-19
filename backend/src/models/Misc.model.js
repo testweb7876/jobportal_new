@@ -194,6 +194,7 @@ const jobShortlistSchema = new mongoose.Schema({
   comments: String,
   rate:     String,
   status:   { type: Boolean, default: true },
+  reminderSentAt: Date, 
   serverid: Number,
   serverstatus: String,
   isDeleted: { type: Boolean, default: false },

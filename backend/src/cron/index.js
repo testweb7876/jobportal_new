@@ -117,6 +117,79 @@ const initCronJobs = () => {
     }
   });
 
+    // ── Job Expiring Soon Warning (Daily) ─────────────────────────────────────
+  cron.schedule('0 4 * * *', async () => {
+    try {
+      const Job = require('../models/Job.model');
+      const emailService = require('../services/email.service');
+      const threeDaysFromNow = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+      const expiringJobs = await Job.find({
+        status: 'approved',
+        expiresAt: { $lte: threeDaysFromNow, $gt: new Date() },
+      }).populate('uid', 'email firstName');
+
+      for (const job of expiringJobs) {
+        if (job.uid) {
+          const daysLeft = Math.ceil((job.expiresAt - new Date()) / (24 * 60 * 60 * 1000));
+          try { await emailService.sendJobExpiringSoon(job.uid, job, daysLeft); } catch { /* silent */ }
+        }
+      }
+      logger.info(`[CRON] Sent ${expiringJobs.length} job-expiring-soon warnings`);
+    } catch (err) {
+      logger.error('[CRON] Job expiring soon error:', err);
+    }
+  });
+
+  // ── Job Expired Notification to Employer (Daily, after expiry checker) ────
+  cron.schedule('5 0 * * *', async () => {
+    try {
+      const Job = require('../models/Job.model');
+      const emailService = require('../services/email.service');
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const justExpired = await Job.find({ status: 'expired', updatedAt: { $gte: yesterday } })
+        .populate('uid', 'email firstName');
+
+      for (const job of justExpired) {
+        if (job.uid) { try { await emailService.sendJobExpired(job.uid, job); } catch {} }
+      }
+      logger.info(`[CRON] Notified ${justExpired.length} employers of job expiry`);
+    } catch (err) {
+      logger.error('[CRON] Job expired notify error:', err);
+    }
+  });
+
+  // ── Saved Job Reminder (Every 3 days) ──────────────────────────────────────
+  cron.schedule('0 10 */3 * *', async () => {
+    try {
+      const { JobShortlist } = require('../models/Misc.model');
+      const User = require('../models/User.model');
+      const emailService = require('../services/email.service');
+
+      const shortlists = await JobShortlist.find({
+        status: true,
+        $or: [{ reminderSentAt: null }, { reminderSentAt: { $lt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } }],
+      }).populate({ path: 'jobId', match: { status: 'approved' }, select: 'title company expiresAt' });
+
+      const byUser = {};
+      for (const s of shortlists) {
+        if (!s.jobId) continue;
+        (byUser[s.uid] ||= []).push(s);
+      }
+
+      for (const [uid, items] of Object.entries(byUser)) {
+        const user = await User.findById(uid);
+        if (!user) continue;
+        try {
+          await emailService.sendSavedJobReminder(user, items.map((i) => i.jobId));
+          await JobShortlist.updateMany({ _id: { $in: items.map((i) => i._id) } }, { reminderSentAt: new Date() });
+        } catch { /* silent */ }
+      }
+      logger.info(`[CRON] Sent saved-job reminders to ${Object.keys(byUser).length} users`);
+    } catch (err) {
+      logger.error('[CRON] Saved job reminder error:', err);
+    }
+  });
+
   logger.info('✅ Cron jobs initialized');
 };
 

@@ -367,6 +367,165 @@ class EmailService {
       `,
     });
   }
+
+    // ── JOBSEEKER ────────────────────────────────────────────────────────────
+
+  async sendResumeApproved(user, resume) {
+    return this.send({
+      to: user.email,
+      subject: 'Your Profile/Resume Has Been Approved ✅',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #059669;">✅ Resume Approved</h2>
+          <p>Hi ${user.firstName},</p>
+          <p>Your resume <strong>${resume.applicationTitle}</strong> has been approved and is now live for employers to view.</p>
+        </div>
+      `,
+    });
+  }
+
+  async sendApplicationWithdrawnConfirmation(user, job) {
+    return this.send({
+      to: user.email,
+      subject: `Application Withdrawn - ${job.title}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #d97706;">Application Withdrawn</h2>
+          <p>Hi ${user.firstName},</p>
+          <p>You've successfully withdrawn your application for <strong>${job.title}</strong>.</p>
+          <p>You can browse and apply for other opportunities anytime.</p>
+        </div>
+      `,
+    });
+  }
+
+  async sendInterviewInvitation(jobseeker, job, interview) {
+    return this.send({
+      to: jobseeker.email,
+      subject: `Interview Invitation - ${job.title}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #7c3aed;">📅 Interview Invitation</h2>
+          <p>Hi ${jobseeker.firstName},</p>
+          <p>You've been invited to interview for <strong>${job.title}</strong> at <strong>${job.company}</strong>.</p>
+          <ul style="color:#333;">
+            ${interview.date ? `<li><strong>Date/Time:</strong> ${new Date(interview.date).toLocaleString()}</li>` : ''}
+            ${interview.type ? `<li><strong>Type:</strong> ${interview.type}</li>` : ''}
+            ${interview.link ? `<li><strong>Link:</strong> <a href="${interview.link}">${interview.link}</a></li>` : ''}
+            ${interview.location ? `<li><strong>Location:</strong> ${interview.location}</li>` : ''}
+          </ul>
+        </div>
+      `,
+    });
+  }
+
+  async sendSavedJobReminder(user, jobs) {
+    const jobList = jobs.map((j) => `<li>${j.title} - ${j.company}</li>`).join('');
+    return this.send({
+      to: user.email,
+      subject: `Reminder: You saved ${jobs.length} job(s)`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2563eb;">💾 Saved Job Reminder</h2>
+          <p>Hi ${user.firstName}, don't forget about these saved jobs — they might expire soon:</p>
+          <ul>${jobList}</ul>
+        </div>
+      `,
+    });
+  }
+
+  // ── EMPLOYER ─────────────────────────────────────────────────────────────
+
+  async sendJobSubmissionReceived(employer, job) {
+    return this.send({
+      to: employer.email,
+      subject: `Job Submitted for Review - ${job.title}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2563eb;">📨 Job Submitted</h2>
+          <p>Hi ${employer.firstName},</p>
+          <p>Your job posting <strong>${job.title}</strong> has been submitted and is pending admin review.</p>
+        </div>
+      `,
+    });
+  }
+
+  async sendJobExpired(employer, job) {
+    return this.send({
+      to: employer.email,
+      subject: `Job Expired - ${job.title}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #d97706;">⏰ Job Expired</h2>
+          <p>Hi ${employer.firstName},</p>
+          <p>Your job posting <strong>${job.title}</strong> has expired and is no longer visible to candidates.</p>
+          <p>Repost it or renew your package to keep hiring.</p>
+        </div>
+      `,
+    });
+  }
+
+  async sendJobExpiringSoon(employer, job, daysLeft) {
+    return this.send({
+      to: employer.email,
+      subject: `Job Expiring in ${daysLeft} Day(s) - ${job.title}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #d97706;">⚠️ Job Expiring Soon</h2>
+          <p>Hi ${employer.firstName},</p>
+          <p>Your job posting <strong>${job.title}</strong> will expire in <strong>${daysLeft} day(s)</strong>.</p>
+        </div>
+      `,
+    });
+  }
+
+  async sendCandidateWithdrewApplication(employer, job, candidateName) {
+    return this.send({
+      to: employer.email,
+      subject: `Candidate Withdrew Application - ${job.title}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #dc2626;">Candidate Withdrew</h2>
+          <p>Hi ${employer.firstName},</p>
+          <p><strong>${candidateName}</strong> has withdrawn their application for <strong>${job.title}</strong>.</p>
+        </div>
+      `,
+    });
+  }
+
+  async sendPackageActivated(user, pkg, endDate) {
+    return this.send({
+      to: user.email,
+      subject: `${pkg.title} Package Activated 🎉`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #059669;">🎉 Package Activated</h2>
+          <p>Hi ${user.firstName},</p>
+          <p>Your <strong>${pkg.title}</strong> package is now active, valid until <strong>${new Date(endDate).toLocaleDateString()}</strong>.</p>
+        </div>
+      `,
+    });
+  }
+
+  async sendPaymentReceipt(user, invoice) {
+    return this.send({
+      to: user.email,
+      subject: `Payment Receipt - Invoice #${invoice._id}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #059669;">🧾 Payment Receipt</h2>
+          <p>Hi ${user.firstName},</p>
+          <p>Thank you for your payment.</p>
+          <table style="width:100%; border-collapse:collapse; margin-top:12px;">
+            <tr><td style="padding:6px 0; color:#666;">Invoice ID</td><td style="text-align:right;">#${invoice._id}</td></tr>
+            <tr><td style="padding:6px 0; color:#666;">Amount</td><td style="text-align:right;">${invoice.amount} ${invoice.currency || ''}</td></tr>
+            <tr><td style="padding:6px 0; color:#666;">Method</td><td style="text-align:right;">${invoice.payMethod}</td></tr>
+            <tr><td style="padding:6px 0; color:#666;">Date</td><td style="text-align:right;">${new Date(invoice.paidAt || invoice.createdAt).toLocaleDateString()}</td></tr>
+          </table>
+        </div>
+      `,
+    });
+  }
 }
 
 module.exports = new EmailService();

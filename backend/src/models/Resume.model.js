@@ -17,6 +17,9 @@ const resumeSchema = new mongoose.Schema({
     secureUrl: String,
   },
 
+  moderationStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'approved' },
+  moderationNote: String,
+
   // ── Job Preferences ────────────────────────────────────────────
   jobCategory: { type: mongoose.Schema.Types.ObjectId, ref: 'Category' },
   jobType:     { type: mongoose.Schema.Types.ObjectId, ref: 'JobType' },

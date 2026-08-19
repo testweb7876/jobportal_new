@@ -126,6 +126,14 @@ exports.stripeWebhook = async (req, res) => {
 
         if (user) {
           await emailService.sendPaymentConfirmation(user, invoice);
+          await emailService.sendPaymentReceipt(user, invoice);
+
+          await notificationService.notifyAdmins({
+            type: 'admin_new_payment',
+            title: 'New Payment Received',
+            message: `${user.firstName} ${user.lastName} paid ${invoice.amount} via Stripe.`,
+            refModel: 'Invoice', refId: invoice._id,
+          });
 
           await notificationService.create({
             recipientId: userId,
@@ -140,6 +148,13 @@ exports.stripeWebhook = async (req, res) => {
     }
 
     if (event.type === 'payment_intent.payment_failed') {
+        try { await emailService.sendPaymentFailed(user, invoice); } catch {}
+          await notificationService.notifyAdmins({
+            type: 'admin_payment_failed',
+            title: 'Payment Failed',
+            message: `Payment failed for ${user.firstName} ${user.lastName}, invoice #${invoice._id}.`,
+            refModel: 'Invoice', refId: invoice._id,
+        });
       const pi = event.data.object;
       const invoice = await Invoice.findOneAndUpdate(
         { transactionId: pi.id },
