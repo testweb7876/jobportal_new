@@ -24,7 +24,6 @@ const initCronJobs = () => {
       const emailService = require('../services/email.service');
       const notificationService = require('../services/notification.service');
 
-      // Deactivate expired packages
       const expired = await UserPackage.find({
         endDate: { $lt: new Date() },
         isActive: true,
@@ -39,11 +38,13 @@ const initCronJobs = () => {
             title: 'Package Expired',
             message: `Your ${pkg.packageId?.title || 'package'} has expired. Renew to keep posting.`,
           });
+          try {
+            await emailService.sendPackageExpired(pkg.uid, pkg.packageId?.title);
+          } catch { /* silent */ }
         }
       }
       logger.info(`[CRON] Deactivated ${expired.length} expired packages`);
 
-      // Send 3-day expiry warnings
       const threeDaysFromNow = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
       const expiring = await UserPackage.find({
         endDate: { $lte: threeDaysFromNow, $gt: new Date() },

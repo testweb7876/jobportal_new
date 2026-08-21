@@ -50,6 +50,7 @@ const applicationSchema = new mongoose.Schema({
   interviewLink:     String,
   interviewNotes:    String,
   interviewScheduledAt: Date,
+  interviewLocation: String,
 
   // ── Resume Snapshot ────────────────────────────────────────────
   resumeSnapshot: mongoose.Schema.Types.Mixed,

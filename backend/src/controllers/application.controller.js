@@ -207,7 +207,7 @@ exports.getApplication = asyncHandler(async (req, res, next) => {
 
 // ─── UPDATE APPLICATION STATUS (EMPLOYER) ────────────────────────────────────
 exports.updateApplicationStatus = asyncHandler(async (req, res, next) => {
-  const { status, note, interviewDate, interviewType, interviewLink } = req.body;
+  const { status, note, interviewDate, interviewType, interviewLink, interviewLocation } = req.body;
 
   const validStatuses = ['reviewed', 'shortlisted', 'interview_scheduled', 'interviewed', 'offered', 'hired', 'rejected'];
   if (!validStatuses.includes(status)) {
@@ -216,11 +216,10 @@ exports.updateApplicationStatus = asyncHandler(async (req, res, next) => {
 
   const application = await Application.findById(req.params.id)
     .populate('uid', 'email firstName')
-    .populate('jobId', 'title uid');
+    .populate('jobId', 'title uid company');
 
   if (!application) return next(new AppError('Application not found.', 404));
 
-  // Employer must own the job
   if (!['admin', 'superadmin'].includes(req.user.role)) {
     const job = await Job.findOne({ _id: application.jobId._id, uid: req.user._id });
     if (!job) return next(new AppError('Not authorized.', 403));
@@ -238,28 +237,42 @@ exports.updateApplicationStatus = asyncHandler(async (req, res, next) => {
     updateData.interviewDate = interviewDate;
     updateData.interviewType = interviewType;
     updateData.interviewLink = interviewLink;
+    updateData.interviewLocation = interviewLocation;
     updateData.interviewScheduledAt = new Date();
   }
 
   const updated = await Application.findByIdAndUpdate(req.params.id, updateData, { new: true });
 
-  // Notify applicant
   if (application.uid) {
     await notificationService.create({
       recipientId: application.uid._id,
       senderId: req.user._id,
-      type: status === 'shortlisted' ? 'shortlisted' : status === 'hired' ? 'hired' : status === 'rejected' ? 'rejected' : 'system',
+      type: status === 'shortlisted' ? 'shortlisted'
+        : status === 'hired' ? 'hired'
+        : status === 'rejected' ? 'rejected'
+        : status === 'interview_scheduled' ? 'interview_invite'
+        : 'system',
       title: `Application Update: ${status.replace('_', ' ').toUpperCase()}`,
       message: note || `Your application status has been updated to ${status}.`,
       refModel: 'Application',
       refId: application._id,
-      // email handled by the direct send below — keep this in-app only to avoid sending two emails
       channels: { inApp: true },
     });
 
-    try {
-      await emailService.sendApplicationStatusUpdate(application.uid, application.jobId, status, note);
-    } catch { /* silent */ }
+    if (status === 'interview_scheduled') {
+      try {
+        await emailService.sendInterviewInvitation(application.uid, application.jobId, {
+          date: interviewDate,
+          type: interviewType,
+          link: interviewLink,
+          location: interviewLocation,
+        });
+      } catch { /* silent */ }
+    } else {
+      try {
+        await emailService.sendApplicationStatusUpdate(application.uid, application.jobId, status, note);
+      } catch { /* silent */ }
+    }
   }
 
   sendSuccess(res, { application: updated }, 'Application status updated');

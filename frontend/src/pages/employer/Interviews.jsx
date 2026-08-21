@@ -1,5 +1,4 @@
-// src/pages/shared/Interviews.jsx
-// Use for BOTH /employer/interviews and /jobseeker/interviews
+
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { Calendar, Clock, Video, MapPin, User, Briefcase } from 'lucide-react'
@@ -9,15 +8,12 @@ import { format, formatDistanceToNow, isFuture } from 'date-fns'
 import useAuthStore from '@/store/authStore'
 import { clsx } from 'clsx'
 
-// ── add to src/services/api.js ────────────────────────────────────────────────
-// export const interviewsAPI = { getUpcoming: () => api.get('/interviews') }
-// ─────────────────────────────────────────────────────────────────────────────
-
 const INTERVIEW_TYPE_ICON = {
-  video:    <Video size={14} className="text-blue-500" />,
-  onsite:   <MapPin size={14} className="text-emerald-500" />,
-  phone:    <Clock size={14} className="text-purple-500" />,
-  default:  <Calendar size={14} className="text-gray-400" />,
+  video:     <Video size={14} className="text-blue-500" />,
+  in_person: <MapPin size={14} className="text-emerald-500" />,
+  phone:     <Clock size={14} className="text-purple-500" />,
+  technical: <Briefcase size={14} className="text-amber-500" />,
+  default:   <Calendar size={14} className="text-gray-400" />,
 }
 
 export default function Interviews() {
@@ -144,10 +140,26 @@ function InterviewCard({ app, isEmployer }) {
           {app.interviewType && (
             <div className="flex items-center gap-1.5 capitalize">
               {INTERVIEW_TYPE_ICON[app.interviewType] || INTERVIEW_TYPE_ICON.default}
-              {app.interviewType}
+              {app.interviewType.replace('_', ' ')}
             </div>
           )}
         </div>
+      )}
+
+      {/* NEW — link / location */}
+      {app.interviewLink && (
+        <a
+          href={app.interviewLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 mt-2 text-xs text-primary-600 hover:underline break-all">
+          <Video size={12} /> {app.interviewLink}
+        </a>
+      )}
+      {app.interviewLocation && (
+        <p className="flex items-center gap-1.5 mt-2 text-xs text-gray-600 dark:text-gray-300">
+          <MapPin size={12} className="text-emerald-500" /> {app.interviewLocation}
+        </p>
       )}
 
       {interviewDate && (

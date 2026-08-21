@@ -526,6 +526,34 @@ class EmailService {
       `,
     });
   }
+
+    async sendPackageExpired(user, packageName) {
+    return this.send({
+      to: user.email,
+      subject: 'Your Package Has Expired - JobPortal',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #dc2626;">❌ Package Expired</h2>
+          <p>Hi ${user.firstName},</p>
+          <p>Your <strong>${packageName || 'package'}</strong> has expired. Renew now to keep posting jobs, applying, and using premium features.</p>
+        </div>
+      `,
+    });
+  }
+
+  async sendEmployerRegistrationPending(user) {
+    return this.send({
+      to: user.email,
+      subject: 'Registration Received - Pending Approval - JobPortal',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2563eb;">📋 Registration Received</h2>
+          <p>Hi ${user.firstName},</p>
+          <p>Thank you for registering as an employer. Please verify your email, then submit your company for verification to unlock full access.</p>
+        </div>
+      `,
+    });
+  }
 }
 
 module.exports = new EmailService();

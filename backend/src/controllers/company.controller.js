@@ -157,6 +157,16 @@ exports.submitVerification = asyncHandler(async (req, res, next) => {
     verificationDocuments: documents,
   });
 
+  // NEW — notify admins that a verification review is required
+  const notificationService = require('../services/notification.service');
+  await notificationService.notifyAdmins({
+    type: 'admin_new_employer',
+    title: 'Employer Approval Required',
+    message: `${company.name} submitted verification documents — review required.`,
+    refModel: 'Company',
+    refId: company._id,
+  });
+
   sendSuccess(res, {}, 'Verification documents submitted. Admin will review within 2-3 business days.');
 });
 

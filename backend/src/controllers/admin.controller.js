@@ -790,13 +790,11 @@ exports.assignPackage = asyncHandler(async (req, res, next) => {
   if (!targetUser) return next(new AppError('User not found.', 404));
   if (!pkg)        return next(new AppError('Package not found.', 404));
 
-  // Deactivate existing active package
   await UserPackage.updateMany({ uid: userId, isActive: true }, { isActive: false, status: false });
 
   const endDate = new Date();
   endDate.setDate(endDate.getDate() + (days || pkg.packageTime));
 
-  // Create invoice (manual)
   const invoice = await Invoice.create({
     uid: userId,
     recordId: packageId,
@@ -835,12 +833,17 @@ exports.assignPackage = asyncHandler(async (req, res, next) => {
 
   await notificationService.create({
     recipientId: userId,
-    type: 'payment_success',
+    type: 'package_activated',
     title: `${pkg.title} Package Activated 🎉`,
     message: `Your ${pkg.title} package has been activated by admin. Valid until ${endDate.toLocaleDateString('en-IN')}.`,
     refModel: 'Invoice',
     refId: invoice._id,
   });
+
+  // NEW — email confirmation
+  try {
+    await emailService.sendPackageActivated(targetUser, pkg, endDate);
+  } catch { /* silent */ }
 
   await ActivityLog.create({
     uid: req.user._id,
@@ -988,4 +991,35 @@ exports.updateReviewSettings = asyncHandler(async (req, res) => {
   });
 
   sendSuccess(res, { reviewSettings: setting.value }, 'Review settings updated');
+});
+
+// ─── ADMIN: MODERATE RESUME ───────────────────────────────────────────────────
+exports.moderateResume = asyncHandler(async (req, res, next) => {
+  const { status, note } = req.body;
+  if (!['approved', 'rejected'].includes(status)) {
+    return next(new AppError('Invalid status.', 400));
+  }
+
+  const resume = await Resume.findByIdAndUpdate(
+    req.params.id,
+    { moderationStatus: status, moderationNote: note },
+    { new: true }
+  ).populate('uid', 'email firstName');
+
+  if (!resume) return next(new AppError('Resume not found.', 404));
+
+  if (status === 'approved') {
+    try { await emailService.sendResumeApproved(resume.uid, resume); } catch { /* silent */ }
+  }
+
+  await notificationService.create({
+    recipientId: resume.uid._id,
+    type: 'resume_approved',
+    title: `Your resume was ${status}`,
+    message: note || `Your resume has been ${status}.`,
+    refModel: 'Resume',
+    refId: resume._id,
+  });
+
+  sendSuccess(res, { resume }, `Resume ${status}`);
 });

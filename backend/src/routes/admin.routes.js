@@ -37,6 +37,9 @@ router.get('/analytics',  protect, adminOnly, hasPermission('analytics'),  admin
 router.get('/settings/reviews',   admin.getReviewSettings);
 router.patch('/settings/reviews', admin.updateReviewSettings);
 
+// ── NEW: resume moderation (admin-level, not superadmin-only) ──────────────
+router.patch('/resumes/:id/moderate', admin.moderateResume);
+
 router.use(superAdminOnly);
 router.get('/admins',                      admin.getAdmins);
 router.post('/admins',                     admin.createAdmin);
@@ -54,27 +57,5 @@ router.post('/assign-package',             admin.assignPackage);
 router.post('/cache/clear',                admin.clearCache);
 router.get('/admins/:id/permissions',    admin.getAdminPermissions);
 router.patch('/admins/:id/permissions',  admin.updateAdminPermissions);
-
-router.patch('/resumes/:id/moderate', protect, adminOnly, asyncHandler(async (req, res, next) => {
-  const { status, note } = req.body;
-  if (!['approved', 'rejected'].includes(status)) return next(new AppError('Invalid status.', 400));
-
-  const resume = await Resume.findByIdAndUpdate(req.params.id, { moderationStatus: status, moderationNote: note }, { new: true })
-    .populate('uid', 'email firstName');
-  if (!resume) return next(new AppError('Resume not found.', 404));
-
-  if (status === 'approved') {
-    try { await emailService.sendResumeApproved(resume.uid, resume); } catch {}
-  }
-  await notificationService.create({
-    recipientId: resume.uid._id,
-    type: 'resume_approved',
-    title: `Your resume was ${status}`,
-    message: note || `Your resume has been ${status}.`,
-    refModel: 'Resume', refId: resume._id,
-  });
-
-  sendSuccess(res, { resume }, `Resume ${status}`);
-}));
 
 module.exports = router;

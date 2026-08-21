@@ -19,6 +19,9 @@ export default function EmpApplications() {
   const [newStatus, setNewStatus] = useState('')
   const [statusNote, setStatusNote] = useState('')
   const [interviewDate, setInterviewDate] = useState('')
+  const [interviewType, setInterviewType] = useState('video')
+  const [interviewLink, setInterviewLink] = useState('')
+  const [interviewLocation, setInterviewLocation] = useState('')
   const qc = useQueryClient()
 
   const jobId = searchParams.get('jobId')
@@ -47,6 +50,9 @@ export default function EmpApplications() {
       setNewStatus('')
       setStatusNote('')
       setInterviewDate('')
+      setInterviewType('video')
+      setInterviewLink('')
+      setInterviewLocation('')
       qc.invalidateQueries(['job-applications'])
     },
     onError: (err) => toast.error(err.response?.data?.message || 'Update failed'),
@@ -58,16 +64,31 @@ export default function EmpApplications() {
 
   const handleStatusUpdate = () => {
     if (!newStatus) { toast.error('Please select a status'); return }
-    if (newStatus === 'interview_scheduled' && !interviewDate) {
-      toast.error('Please select an interview date & time')
-      return
+    if (newStatus === 'interview_scheduled') {
+      if (!interviewDate) {
+        toast.error('Please select an interview date & time')
+        return
+      }
+      if (interviewType !== 'in_person' && !interviewLink) {
+        toast.error('Please add a meeting link')
+        return
+      }
+      if (interviewType === 'in_person' && !interviewLocation) {
+        toast.error('Please add the interview location')
+        return
+      }
     }
     updateStatusMutation.mutate({
       id: statusModal._id,
       data: {
         status: newStatus,
         note: statusNote,
-        ...(newStatus === 'interview_scheduled' && { interviewDate, interviewType: 'video' }),
+        ...(newStatus === 'interview_scheduled' && {
+          interviewDate,
+          interviewType,
+          interviewLink: interviewType !== 'in_person' ? interviewLink : undefined,
+          interviewLocation: interviewType === 'in_person' ? interviewLocation : undefined,
+        }),
       }
     })
   }
@@ -191,7 +212,15 @@ export default function EmpApplications() {
       )}
 
       {/* Status Update Modal */}
-      <Modal open={!!statusModal} onClose={() => { setStatusModal(null); setNewStatus(''); setStatusNote('') }}
+      <Modal open={!!statusModal} onClose={() => {
+          setStatusModal(null)
+          setNewStatus('')
+          setStatusNote('')
+          setInterviewDate('')
+          setInterviewType('video')
+          setInterviewLink('')
+          setInterviewLocation('')
+        }}
         title="Update Application Status">
         <div className="space-y-4">
           <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-dark-800 rounded-xl">
@@ -216,11 +245,37 @@ export default function EmpApplications() {
           </div>
 
           {newStatus === 'interview_scheduled' && (
-            <div>
-              <label className="label">Interview Date & Time *</label>
-              <input type="datetime-local" value={interviewDate} onChange={e => setInterviewDate(e.target.value)}
-                className="input" />
-            </div>
+            <>
+              <div>
+                <label className="label">Interview Date & Time *</label>
+                <input type="datetime-local" value={interviewDate} onChange={e => setInterviewDate(e.target.value)}
+                  className="input" />
+              </div>
+
+              <div>
+                <label className="label">Interview Type *</label>
+                <select value={interviewType} onChange={e => setInterviewType(e.target.value)} className="input">
+                  <option value="video">Video Call</option>
+                  <option value="phone">Phone Call</option>
+                  <option value="in_person">In Person</option>
+                  <option value="technical">Technical Round</option>
+                </select>
+              </div>
+
+              {interviewType === 'in_person' ? (
+                <div>
+                  <label className="label">Interview Location *</label>
+                  <input value={interviewLocation} onChange={e => setInterviewLocation(e.target.value)}
+                    placeholder="Office address..." className="input" />
+                </div>
+              ) : (
+                <div>
+                  <label className="label">Meeting Link *</label>
+                  <input value={interviewLink} onChange={e => setInterviewLink(e.target.value)}
+                    placeholder="https://meet.google.com/..." className="input" />
+                </div>
+              )}
+            </>
           )}
 
           <div>

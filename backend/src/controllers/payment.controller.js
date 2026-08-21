@@ -94,7 +94,6 @@ exports.createStripeSession = asyncHandler(async (req, res, next) => {
 
 // ─── STRIPE: WEBHOOK ──────────────────────────────────────────────────────────
 exports.stripeWebhook = async (req, res) => {
-
   const sig = req.headers['stripe-signature'];
   let event;
 
@@ -104,6 +103,7 @@ exports.stripeWebhook = async (req, res) => {
     logger.error('Stripe webhook signature failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
+
   try {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
@@ -113,7 +113,7 @@ exports.stripeWebhook = async (req, res) => {
         {
           paymentStatus: 'paid',
           paidAt: new Date(),
-          payerTransactionNumber: session.payment_intent
+          payerTransactionNumber: session.payment_intent,
         },
         { new: true }
       );
@@ -126,13 +126,14 @@ exports.stripeWebhook = async (req, res) => {
 
         if (user) {
           await emailService.sendPaymentConfirmation(user, invoice);
-          await emailService.sendPaymentReceipt(user, invoice);
+          try { await emailService.sendPaymentReceipt(user, invoice); } catch { /* silent */ }
 
           await notificationService.notifyAdmins({
             type: 'admin_new_payment',
             title: 'New Payment Received',
             message: `${user.firstName} ${user.lastName} paid ${invoice.amount} via Stripe.`,
-            refModel: 'Invoice', refId: invoice._id,
+            refModel: 'Invoice',
+            refId: invoice._id,
           });
 
           await notificationService.create({
@@ -148,13 +149,6 @@ exports.stripeWebhook = async (req, res) => {
     }
 
     if (event.type === 'payment_intent.payment_failed') {
-        try { await emailService.sendPaymentFailed(user, invoice); } catch {}
-          await notificationService.notifyAdmins({
-            type: 'admin_payment_failed',
-            title: 'Payment Failed',
-            message: `Payment failed for ${user.firstName} ${user.lastName}, invoice #${invoice._id}.`,
-            refModel: 'Invoice', refId: invoice._id,
-        });
       const pi = event.data.object;
       const invoice = await Invoice.findOneAndUpdate(
         { transactionId: pi.id },
@@ -162,14 +156,20 @@ exports.stripeWebhook = async (req, res) => {
         { new: true }
       );
 
-      // Email — user should know their payment didn't go through
       if (invoice) {
         const User = require('../models/User.model');
         const user = await User.findById(invoice.uid);
+
         if (user) {
-          try {
-            await emailService.sendPaymentFailed(user, invoice);
-          } catch { /* silent */ }
+          try { await emailService.sendPaymentFailed(user, invoice); } catch { /* silent */ }
+
+          await notificationService.notifyAdmins({
+            type: 'admin_payment_failed',
+            title: 'Payment Failed',
+            message: `Payment failed for ${user.firstName} ${user.lastName}, invoice #${invoice._id}.`,
+            refModel: 'Invoice',
+            refId: invoice._id,
+          });
         }
       }
     }
@@ -246,13 +246,21 @@ exports.capturePaypalOrder = asyncHandler(async (req, res, next) => {
     if (invoice) {
       await activateUserPackage(userId, packageId, invoice._id);
 
-      // Email — was missing here while Stripe + bank already had it; now consistent across all gateways
       const User = require('../models/User.model');
       const user = await User.findById(userId);
       if (user) {
         try {
           await emailService.sendPaymentConfirmation(user, invoice);
+          await emailService.sendPaymentReceipt(user, invoice);
         } catch { /* silent */ }
+
+        await notificationService.notifyAdmins({
+          type: 'admin_new_payment',
+          title: 'New Payment Received',
+          message: `${user.firstName} ${user.lastName} paid ${invoice.amount} via PayPal.`,
+          refModel: 'Invoice',
+          refId: invoice._id,
+        });
       }
 
       await notificationService.create({
@@ -299,6 +307,15 @@ exports.submitBankTransfer = asyncHandler(async (req, res, next) => {
     await emailService.sendBankProofReceived(req.user, invoice);
   } catch { /* silent */ }
 
+  // NEW — notify admins
+  await notificationService.notifyAdmins({
+    type: 'admin_bank_proof',
+    title: 'Bank Transfer Proof Received',
+    message: `${req.user.firstName} ${req.user.lastName} submitted bank proof for ${pkg.title}.`,
+    refModel: 'Invoice',
+    refId: invoice._id,
+  });
+
   sendSuccess(res, { invoice }, 'Bank transfer proof submitted. Admin will verify within 24-48 hours.', 201);
 });
 
@@ -312,6 +329,9 @@ exports.approveBankTransfer = asyncHandler(async (req, res, next) => {
   await activateUserPackage(invoice.uid._id, invoice.recordId, invoice._id);
 
   await emailService.sendPaymentConfirmation(invoice.uid, invoice);
+  try {
+    await emailService.sendPaymentReceipt(invoice.uid, invoice);
+  } catch { /* silent */ }
 
   sendSuccess(res, {}, 'Bank transfer approved and package activated');
 });
@@ -367,10 +387,18 @@ exports.requestRefund = asyncHandler(async (req, res, next) => {
     refundReason: req.body.reason,
   });
 
-  // Email — confirm the refund request was received
   try {
     await emailService.sendRefundStatusUpdate(req.user, invoice, 'requested');
   } catch { /* silent */ }
+
+  // NEW — notify admins
+  await notificationService.notifyAdmins({
+    type: 'admin_refund_requested',
+    title: 'Refund Requested',
+    message: `${req.user.firstName} ${req.user.lastName} requested a refund for invoice #${invoice._id}.`,
+    refModel: 'Invoice',
+    refId: invoice._id,
+  });
 
   sendSuccess(res, {}, 'Refund request submitted. Admin will process within 5-7 business days.');
 });
@@ -402,6 +430,7 @@ exports.updateBankTransferStatus = asyncHandler(async (req, res, next) => {
 
     try {
       await emailService.sendPaymentConfirmation(invoice.uid, invoice)
+      await emailService.sendPaymentReceipt(invoice.uid, invoice)
     } catch { /* silent */ }
   } else {
     await Invoice.findByIdAndUpdate(invoice._id, { paymentStatus: status })
@@ -410,6 +439,14 @@ exports.updateBankTransferStatus = asyncHandler(async (req, res, next) => {
       try {
         await emailService.sendPaymentFailed(invoice.uid, invoice)
       } catch { /* silent */ }
+
+      await notificationService.notifyAdmins({
+        type: 'admin_payment_failed',
+        title: 'Payment Failed',
+        message: `Bank transfer ${status} for ${invoice.uid.firstName}, invoice #${invoice._id}.`,
+        refModel: 'Invoice',
+        refId: invoice._id,
+      });
     }
   }
 

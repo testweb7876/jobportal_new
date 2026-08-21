@@ -24,7 +24,6 @@ exports.register = asyncHandler(async (req, res, next) => {
   const verifyToken = user.createEmailVerificationToken();
   await user.save({ validateBeforeSave: false });
 
-
   const verifyUrl = `${process.env.CLIENT_URL}/verify-email/${verifyToken}`;
 
   try {
@@ -33,7 +32,22 @@ exports.register = asyncHandler(async (req, res, next) => {
     logger.warn(`Welcome email failed for ${user.email}: ${err.message}`);
   }
 
-  // Log activity
+  // NEW — employer-specific: pending-approval email + notify admins
+  if (role === 'employer') {
+    try {
+      await emailService.sendEmployerRegistrationPending(user);
+    } catch { /* silent */ }
+
+    const notificationService = require('../services/notification.service');
+    await notificationService.notifyAdmins({
+      type: 'admin_new_employer',
+      title: 'New Employer Registered',
+      message: `${firstName} ${lastName} (${email}) registered as an employer.`,
+      refModel: 'User',
+      refId: user._id,
+    });
+  }
+
   await ActivityLog.create({
     uid: user._id,
     description: 'User registered',

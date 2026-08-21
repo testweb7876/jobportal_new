@@ -181,7 +181,6 @@ exports.createJob = asyncHandler(async (req, res, next) => {
   const Company = require('../models/Company.model');
   const company = await Company.findOne({ uid: req.user._id });
 
-  // Admins always auto-approve. Otherwise, respect the site-wide auto-approve toggle.
   const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
   const autoApprove = isAdmin || await getAutoApproveFlag();
 
@@ -214,18 +213,25 @@ exports.createJob = asyncHandler(async (req, res, next) => {
   });
 
   await cache.delPattern('jobs:list:*');
-  
 
-    sendSuccess(res, { job }, autoApprove ? 'Job created and published successfully.' : 'Job created successfully. Pending review.', 201);
-    try { await emailService.sendJobSubmissionReceived(req.user, job); } catch {}
-    if (!autoApprove) {
-      await notificationService.notifyAdmins({
-        type: 'admin_new_job',
-        title: 'New Job Submitted',
-        message: `"${job.title}" submitted by ${req.user.firstName} ${req.user.lastName} — pending approval.`,
-        refModel: 'Job', refId: job._id,
-      });
-    }
+  // ── NEW: side-effects — fire-and-forget so a failure here never breaks the response ──
+  emailService.sendJobSubmissionReceived(req.user, job).catch(() => {});
+  if (!autoApprove) {
+    notificationService.notifyAdmins({
+      type: 'admin_new_job',
+      title: 'New Job Submitted',
+      message: `"${job.title}" submitted by ${req.user.firstName} ${req.user.lastName} — pending approval.`,
+      refModel: 'Job',
+      refId: job._id,
+    }).catch(() => {});
+  }
+
+  sendSuccess(
+    res,
+    { job },
+    autoApprove ? 'Job created and published successfully.' : 'Job created successfully. Pending review.',
+    201
+  );
 });
 
 // ─── UPDATE JOB ───────────────────────────────────────────────────────────────
